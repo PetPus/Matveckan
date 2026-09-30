@@ -1,7 +1,7 @@
 /* Matveckan – gör appen körbar utan internet.
    Första besöket med täckning lägger appen i telefonens cache.
    Därefter startar den även i flygplansläge. */
-var CACHE="matveckan-4";
+var CACHE="matveckan-8";
 var FILES=['./','./index.html'];
 
 self.addEventListener('install',function(e){
