@@ -107,6 +107,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--lilac-de
 .qty{color:var(--muted);font-variant-numeric:tabular-nums}
 .src{font-size:12px;color:var(--muted);margin-top:3px}
 
+.pos{width:46px;flex:0 0 46px;padding:6px 4px!important;text-align:center;font-size:13px;
+ font-variant-numeric:tabular-nums;border-radius:8px!important}
 .ord{display:flex;flex-direction:column;gap:2px}
 .ord button{width:28px;height:19px;border:1px solid var(--line);border-radius:6px;font-size:10px;color:var(--lilac-deep);background:#fff}
 .mv{font-size:12px;color:var(--lilac-deep);font-weight:600;white-space:nowrap;border:1px solid var(--line);
@@ -882,6 +884,13 @@ function materialize(shop,list){
   list.forEach(function(it){ordArr(shop).push(normName(it.n))});
   save();
 }
+function setPos(shop,name,v){
+  var a=ordArr(shop),k=normName(name),i=a.indexOf(k),
+      to=Math.max(1,Math.min(a.length||1,parseInt(v,10)||1))-1;
+  if(i>-1)a.splice(i,1);
+  a.splice(to,0,k);
+  save();render();toast(name+' → plats '+(to+1));
+}
 function moveOrd(shop,name,dir){
   var a=ordArr(shop),i=a.indexOf(normName(name)),j=i+dir;
   if(i<0||j<0||j>=a.length)return;
@@ -1055,8 +1064,13 @@ function itemRow(it,shop,storeOrder){
     (it.src?'<div class="src">'+esc(it.src)+'</div>':'')+'</span>'+
     (edit
       ? '<button class="mv'+(isFresh(it.n)?' hint':'')+'" onclick="itemSheet(\''+q1(it.key)+'\',\''+shop+'\')">ändra</button>'+
-        (storeOrder&&shop!=='other'?'<div class="ord"><button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',-1)">&#9650;</button>'+
-        '<button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',1)">&#9660;</button></div>':'')+
+        (storeOrder&&shop!=='other'
+          ? '<input class="pos" type="number" min="1" value="'+(ordIdx(shop,it.n)+1)+'" '+
+            'onchange="setPos(\''+shop+'\',\''+q1(it.n)+'\',this.value)" '+
+            'onclick="this.select()">'+
+            '<div class="ord"><button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',-1)">&#9650;</button>'+
+            '<button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',1)">&#9660;</button></div>'
+          : '')+
         '<button class="x" onclick="removeRow(\''+q1(it.key)+'\',\''+shop+'\')">&times;</button>'
       : qbox+(it.auto&&isFresh(it.n)?'<button class="mv" onclick="setLater(\''+q1(it.key)+'\',true)" title="Flytta till komplettering">&#8987;</button>':''))+
     (it.manual&&!edit?'<button class="x" onclick="delExtra(\''+it.manual+'\')">&times;</button>':'')+'</li>';
@@ -1134,6 +1148,7 @@ function poolBlock(){
 /* planera → inköpslista (alfabetiskt) */
 function planShop(){
   var g=groups(),h='';
+  h+=backupBanner();
   h+='<div class="tiny" style="margin-bottom:12px">'+(S.editing
       ? 'Redigeringsläge: tryck <b>ändra</b> för namn, butik, färskmärkning eller sammanslagning. Ordningen ändras under Handla.'
       : 'Bokstavsordning. Utgår från '+actLabel()+'.')+'</div>';
@@ -1155,8 +1170,9 @@ function planShop(){
 /* handla (butiksordning) */
 function renderShop(){
   var g=groups(),h='';
-  if(S.editing)h+='<div class="tiny" style="margin-bottom:12px">Redigeringsläge: pilarna flyttar varan i gången, '+
-     '<b>ändra</b> ger namn, butik, färskmärkning och sammanslagning.</div>';
+  if(S.editing)h+='<div class="tiny" style="margin-bottom:12px">Redigeringsläge: skriv ett nummer för att flytta varan dit, '+
+     '1 är överst. Pilarna flyttar ett steg. <b>ändra</b> ger namn, butik, färskmärkning och sammanslagning.</div>';
+  h+=backupBanner();
   h+=laterBanner(g);
   if(g.pending.length)h+='<div class="card" style="padding:12px 14px;margin-bottom:14px"><div class="row">'+
     '<span class="grow tiny">'+g.pending.length+' varor är inte fördelade mellan butikerna.</span>'+
@@ -1433,6 +1449,19 @@ function setPeriod(st,en){
   if(!DAYS.filter(function(d){return d[0]===S.cookDay}).length)S.cookDay=DAYS[0][0];
   save();render();toast('Perioden är '+DAYS[0][1]+'–'+DAYS[DAYS.length-1][1]);
 }
+function daysSinceBackup(){
+  if(!S.lastBackup)return null;
+  return Math.floor((Date.now()-S.lastBackup)/86400000);
+}
+function backupBanner(){
+  var d=daysSinceBackup();
+  if(d!==null&&d<3)return '';
+  return '<div class="card" style="padding:12px 14px;margin-bottom:14px;border-color:var(--butter)"><div class="row">'+
+    '<span class="grow tiny">'+(d===null
+      ? 'Du har ingen säkerhetskopia. Allt du lagt in finns bara i den här telefonen.'
+      : 'Senaste säkerhetskopian är '+d+' dagar gammal.')+'</span>'+
+    '<button class="mv" onclick="go(\'more\')">Kopiera</button></div></div>';
+}
 function inFrame(){try{return window.self!==window.top}catch(e){return true}}
 function copyBackup(){
   var t=document.getElementById('bkText');
@@ -1442,10 +1471,11 @@ function copyBackup(){
   try{ok=document.execCommand('copy')}catch(e){}
   t.setAttribute('readonly','readonly');
   if(!ok&&navigator.clipboard){
-    navigator.clipboard.writeText(t.value).then(function(){toast('Kopierad')},
+    navigator.clipboard.writeText(t.value).then(function(){S.lastBackup=Date.now();save();toast('Kopierad')},
       function(){toast('Markera texten och kopiera för hand')});
     return;
   }
+  if(ok){S.lastBackup=Date.now();save()}
   toast(ok?'Kopierad – klistra in i Anteckningar':'Markera texten och kopiera för hand');
 }
 function restoreBackup(){
@@ -1461,6 +1491,7 @@ function expData(){
   var b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');
   a.href=URL.createObjectURL(b);a.download='matveckan-'+new Date().toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();a.remove();
+  S.lastBackup=Date.now();save();
 }
 function impData(inp){
   var f=inp.files[0];if(!f)return;var fr=new FileReader();
@@ -1498,7 +1529,7 @@ load();
 applyNewOrder();
 rebuildDays();go('plan','week');
 if('serviceWorker' in navigator&&location.protocol==='https:'){
-  navigator.serviceWorker.register('sw.js').catch(function(){});
+  navigator.serviceWorker.register('sw.js').then(function(reg){reg.update()}).catch(function(){});
 }
 
 </script>
