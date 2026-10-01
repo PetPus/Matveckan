@@ -1,7 +1,7 @@
 /* Matveckan – offline utan att fastna i gammal version.
    Sidan hämtas från nätet när det finns, annars ur cachen.
    sw.js cachas aldrig, så nya versioner upptäcks alltid. */
-var CACHE="matveckan-10";
+var CACHE="matveckan-11";
 
 self.addEventListener('install',function(e){
   e.waitUntil(

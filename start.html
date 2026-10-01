@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Matveckan</title>
+<style>
+:root{
+  --bg:#FAF8FE; --card:#fff; --ink:#2C2842; --muted:#8C86A6; --line:#ECE7F7; --fill:#F4F0FC;
+  --lilac:#CBC0F2; --lilac-deep:#6E60BE;
+  --mint:#BFE4D6; --mint-deep:#3E8C71;
+  --blush:#F7CBD8; --blush-deep:#B4607A;
+  --butter:#F9E6B4; --butter-deep:#8E6E1C;
+  --sky:#C5DCF5; --sky-deep:#3F72A8;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);
+ font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+ padding-bottom:calc(78px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-weight:640;letter-spacing:-.02em}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+
+header{position:sticky;top:0;z-index:20;background:rgba(250,248,254,.9);backdrop-filter:blur(14px);
+ border-bottom:1px solid var(--line);color:var(--ink);
+ padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:12px}
+header h1{font-size:21px;flex:1}
+header .sub{font-size:12.5px;color:var(--muted);display:block;font-weight:400;letter-spacing:0;margin-top:2px}
+header .gear{width:34px;height:34px;display:grid;place-items:center;color:var(--lilac-deep);
+ background:var(--fill);border-radius:10px}
+header .gear svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
+
+main{padding:16px 16px 28px;max-width:640px;margin:0 auto}
+.view{display:none}.view.on{display:block}
+
+nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(255,255,255,.93);
+ backdrop-filter:blur(14px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);
+ padding-bottom:env(safe-area-inset-bottom)}
+nav button{padding:9px 2px 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;
+ padding:3px 12px;border-radius:999px;box-sizing:content-box;width:20px;height:20px}
+nav button.on{color:var(--lilac-deep);font-weight:600}
+nav button.on svg{background:var(--lilac)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.sec-title{font-size:12.5px;color:var(--muted);margin:26px 0 8px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.sec-title:first-child{margin-top:2px}
+.sec-title button{font-size:12.5px;color:var(--lilac-deep);font-weight:600}
+
+.btn{background:var(--lilac);color:var(--ink);border-radius:11px;padding:12px 16px;font-weight:600;font-size:15px;
+ display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn.quiet{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.btn.danger{background:transparent;color:var(--blush-deep);border:1px solid var(--blush);font-weight:500}
+.btn.wide{width:100%}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.tiny{font-size:12.5px;color:var(--muted)}
+
+.pill{display:inline-block;font-size:11px;padding:3px 8px;border-radius:7px;background:var(--fill);color:var(--lilac-deep);font-weight:600;white-space:nowrap}
+.pill.box{background:var(--butter);color:var(--butter-deep)}
+.pill.late{background:var(--butter);color:var(--butter-deep);margin-left:5px}
+.pill.r{background:var(--mint);color:var(--mint-deep);margin-left:5px}
+.pill.q{background:var(--blush);color:var(--blush-deep);margin-left:5px}
+.pill.act,.pill.wk{background:var(--lilac);color:var(--ink)}
+
+input[type=text],input[type=number],textarea,select{width:100%;background:#fff;border:1px solid var(--line);
+ border-radius:11px;padding:11px 12px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--lilac-deep)}
+.empty{text-align:center;color:var(--muted);padding:32px 20px;font-size:14.5px}
+
+.subtabs{display:flex;gap:3px;margin-bottom:20px;background:var(--fill);padding:3px;border-radius:12px}
+.subtabs button{flex:1;padding:9px 4px;border-radius:9px;font-size:14px;color:var(--muted)}
+.subtabs button.on{background:#fff;color:var(--lilac-deep);font-weight:600}
+
+.day{margin-bottom:14px}
+.day-head{display:flex;align-items:baseline;gap:9px;padding:0 2px 7px}
+.day-head b{font-size:15px;font-weight:640;letter-spacing:-.01em}
+.dish{display:flex;gap:11px;padding:13px;border-top:1px solid var(--line);align-items:flex-start}
+.dish:first-child{border-top:0}
+.dish .nm{font-weight:560;line-height:1.3}
+.dish .meta{font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.dish .x,.slist .x{color:#C9C3DC;font-size:21px;line-height:1;padding:0 2px}
+.addrow{padding:11px 13px;border-top:1px solid var(--line);background:var(--fill)}
+.addrow button{color:var(--lilac-deep);font-weight:600;font-size:14px}
+
+.rlist button.item{display:flex;width:100%;text-align:left;gap:10px;padding:13px;border-top:1px solid var(--line);align-items:center}
+.rlist button.item:first-child{border-top:0}
+.rlist .item .nm{font-weight:560}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+.chip{padding:7px 13px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:14px;white-space:nowrap;color:var(--muted)}
+.chip.on{background:var(--lilac);color:var(--ink);border-color:var(--lilac);font-weight:600}
+
+.slist{margin:0;padding:0}
+.slist li{list-style:none;display:flex;gap:11px;padding:12px 13px;border-top:1px solid var(--line);align-items:center}
+.slist li:first-child{border-top:0}
+.box{width:21px;height:21px;flex:0 0 21px;border:1.5px solid #CFC8E4;border-radius:50%;display:grid;place-items:center}
+.box.on{background:var(--mint);border-color:var(--mint)}
+.box svg{width:12px;height:12px;stroke:var(--mint-deep);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;display:none}
+.box.on svg{display:block}
+.done .txt{color:#B6B0C9}
+.done .txt b{font-weight:400;text-decoration:line-through}
+.qty{color:var(--muted);font-variant-numeric:tabular-nums}
+.src{font-size:12px;color:var(--muted);margin-top:3px}
+
+.pos{width:46px;flex:0 0 46px;padding:6px 4px!important;text-align:center;font-size:13px;
+ font-variant-numeric:tabular-nums;border-radius:8px!important}
+.ord{display:flex;flex-direction:column;gap:2px}
+.ord button{width:28px;height:19px;border:1px solid var(--line);border-radius:6px;font-size:10px;color:var(--lilac-deep);background:#fff}
+.mv{font-size:12px;color:var(--lilac-deep);font-weight:600;white-space:nowrap;border:1px solid var(--line);
+ border-radius:9px;padding:6px 9px;background:#fff}
+.mv.hint{background:var(--lilac);color:var(--ink);border-color:var(--lilac)}
+.qbox{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;flex:0 0 auto}
+.qbox button{width:28px;height:30px;font-size:15px;color:var(--lilac-deep);font-weight:600}
+.qbox span{min-width:52px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+.daysel{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px}
+.daysel button{flex:0 0 auto;padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:14px;color:var(--muted)}
+.daysel button.on{background:var(--sky);color:var(--ink);border-color:var(--sky);font-weight:600}
+
+.ing{margin:0;padding:0}
+.ing li{list-style:none;padding:11px 13px;border-top:1px solid var(--line);display:flex;gap:12px}
+.ing li:first-child{border-top:0}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:11px;background:#fff;overflow:hidden}
+.stepper button{width:38px;height:38px;font-size:18px;color:var(--lilac-deep);font-weight:600}
+.stepper span{min-width:34px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+
+.wknav{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.wknav .lbl{flex:1;text-align:center;font-weight:640;letter-spacing:-.02em}
+.wknav button.arw{width:40px;height:40px;border:1px solid var(--line);border-radius:11px;background:#fff;font-size:17px;color:var(--lilac-deep)}
+.wkcard{margin-bottom:24px}
+.wkcard h3{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+
+.irow{display:grid;grid-template-columns:60px 80px 1fr 24px;gap:6px;margin-bottom:7px;align-items:center}
+.irow input,.irow select{padding:9px 8px;border-radius:9px}
+.irow .x{font-size:19px;color:#C9C3DC;text-align:center}
+
+.scrim{position:fixed;inset:0;background:rgba(44,40,66,.32);z-index:40;display:none}
+.scrim.on{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bg);border-radius:18px 18px 0 0;
+ max-height:90vh;overflow:auto;display:none;padding:8px 16px calc(24px + env(safe-area-inset-bottom))}
+.sheet.on{display:block}
+.grab{width:36px;height:4px;background:var(--lilac);border-radius:2px;margin:8px auto 16px}
+.sheet h2{font-size:19px;margin-bottom:12px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+
+.fab{position:fixed;right:16px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:35;display:none;
+ background:var(--ink);color:#fff;border-radius:999px;padding:12px 18px;font-size:14px;font-weight:600;
+ box-shadow:0 4px 14px rgba(44,40,66,.22)}
+.fab.on{display:block}
+.fab.active{background:var(--lilac);color:var(--ink)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:94px;background:var(--ink);color:#fff;
+ padding:10px 16px;border-radius:10px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header><h1 id="hdr">Planera<span class="sub" id="hdrsub"></span></h1>
+<button class="gear" onclick="go('more')" aria-label="Inställningar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7.5 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 8.5l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></button>
+</header>
+<main>
+ <section class="view on" id="v-plan"></section>
+ <section class="view" id="v-shop"></section>
+ <section class="view" id="v-cook"></section>
+ <section class="view" id="v-more"></section>
+</main>
+<nav>
+ <button data-v="plan" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Planera</button>
+ <button data-v="shop"><svg viewBox="0 0 24 24"><path d="M4 6h16l-1.5 12.5a2 2 0 0 1-2 1.5H7.5a2 2 0 0 1-2-1.5z"/><path d="M9 6a3 3 0 0 1 6 0"/></svg>Handla</button>
+ <button data-v="cook"><svg viewBox="0 0 24 24"><path d="M4 12h16v4a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z"/><path d="M8 9c0-2 1-2 1-3.5S8 4 8 4M12 9c0-2 1-2 1-3.5S12 4 12 4M16 9c0-2 1-2 1-3.5S16 4 16 4"/></svg>Laga</button>
+</nav>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"></div>
+<button class="fab" id="fab" onclick="toggleEditAll()"></button>
+<div class="toast" id="toast"></div>
+<datalist id="ingnames"></datalist>
+<script>
+var mem={};
+var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},
+ set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
+ del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
+var KEY='matveckan.v8';
+var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
+var CYC=['mon','tue','wed','thu','fri','sat','sun'];
+var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
+function labelOf(k){for(var i=0;i<ALLDAYS.length;i++)if(ALLDAYS[i][0]===k)return ALLDAYS[i][1];return k}
+function rebuildDays(){
+  var si=CYC.indexOf(S.startDay||'wed'),ei=CYC.indexOf(S.endDay||'tue'),out=[],i,k;
+  if(si<0)si=2;if(ei<0)ei=1;
+  i=si;
+  for(k=0;k<7;k++){
+    out.push([CYC[i],labelOf(CYC[i])]);
+    if(CYC[i]===CYC[ei])break;
+    i=(i+1)%7;
+  }
+  DAYS=out;
+}
+var UNITS=['','st','g','kg','dl','ml','l','msk','tsk','krm','klyftor','burk','paket','kruka','bitar'];
+function I(q,u,n){return{q:q,u:u||'',n:n}}
+function R(id,name,type,ing){return{id:id,name:name,type:type,bas:4,ing:ing||[]}}
+
+var SEED_RECIPES=[
+R('r01','Biffar med potatis och tzatziki','middag',[I(500,'g','Köttfärs'),I(null,'','Potatis'),I(null,'','Fetaost'),I(null,'','Grädde'),I(1,'','Ägg'),I(2,'msk','Tomatpuré'),I(2,'msk','Torkad oregano'),I(1,'tsk','Spiskummin'),I(4,'klyftor','Vitlök'),I(1,'dl','Persilja'),I(null,'','Grekisk yoghurt'),I(0.5,'','Gurka'),I(null,'','Olivolja')]),
+R('r02','Fisknuggets med nudlar','middag',[I(null,'','Fisknuggets'),I(null,'','Nudlar'),I(null,'','Majonnäs'),I(null,'','Halloumi')]),
+R('r03','Gulasch','middag',[I(1,'','Gul lök'),I(2,'klyftor','Vitlök'),I(1,'','Rotselleri'),I(1,'','Paprika'),I(null,'','Vitkål'),I(400,'g','Nötfärs'),I(2,'burk','Krossade tomater'),I(2,'tsk','Paprikapulver'),I(1,'tsk','Mejram/oregano'),I(1,'tsk','Mald kummin'),I(1,'krm','Cayennepeppar'),I(1.5,'msk','Tomatpuré'),I(null,'','Salt och peppar')]),
+R('r04','Korv med potatis och surkål','middag',[I(8,'','Korvar'),I(null,'','Surkål'),I(null,'','Potatis'),I(null,'','Senap')]),
+R('r05','Korvstroganoff med ris','middag',[I(1,'','Falukorv'),I(1,'','Halloumi'),I(5,'dl','Crème fraîche'),I(1,'','Lök'),I(null,'','Tomatpuré'),I(null,'','Senap'),I(null,'','Persilja'),I(3,'dl','Havreris')]),
+R('r06','Kyckling med nudlar','middag',[I(1,'kg','Kycklingfilé/innerlårfilé'),I(null,'','Risnudlar'),I(2.5,'msk','Soja'),I(1,'klyfta','Vitlök'),I(null,'','Chili'),I(1,'tsk','Rosmarin'),I(1,'tsk','Oregano'),I(3,'msk','Smör'),I(null,'','Majonnäs'),I(null,'','Sesamolja'),I(null,'','Morot/gurka/broccoli')]),
+R('r07','Köttbullar med vitkålsmos','middag',[I(null,'','Köttfärs'),I(null,'','Ägg'),I(null,'','Grädde'),I(null,'','Tomatpuré'),I(null,'','Senap'),I(null,'','Vitkål'),I(null,'','Smör'),I(null,'','Soja (gräddsås)'),I(null,'','Salt och peppar')]),
+R('r08','Kålpudding','middag',[I(null,'','Köttfärs'),I(null,'','Ägg'),I(null,'','Kål'),I(null,'','Rivost')]),
+R('r09','Laxpasta','middag',[I(4,'bitar','Lax'),I(1,'paket','Pasta'),I(2.5,'dl','Parmesan'),I(2.5,'dl','Crème fraîche'),I(1,'','Citron'),I(2,'','Tomater'),I(0.5,'','Chili'),I(2,'klyftor','Vitlök'),I(1,'','Zucchini')]),
+R('r10','Nachotallrik','middag',[I(null,'','Nachochips'),I(null,'','Rivost'),I(null,'','Tacosås'),I(null,'','Avokado'),I(null,'','Lime'),I(null,'','Crème fraîche'),I(225,'g','Fryst majs'),I(0.5,'','Chili'),I(2,'burk','Svarta bönor'),I(1,'','Gul lök'),I(2,'klyftor','Vitlök'),I(1,'dl','Kokosolja'),I(1,'tsk','Spiskummin'),I(1,'tsk','Malen koriander'),I(1,'tsk','Rökt paprika'),I(null,'','Timjan'),I(2,'msk','Vinäger')]),
+R('r11','Panerad fisk och blomkål med dillsås','middag',[I(1,'paket','Plattfisk'),I(2,'','Ägg'),I(null,'','Pofiber'),I(null,'','Mandelmjöl'),I(1,'','Blomkålshuvud'),I(null,'','Crème fraîche'),I(1,'','Citron'),I(null,'','Fryst dill')]),
+R('r12','Pizza (dubbel sats)','middag',[I(3,'dl','Skrädmjöl'),I(3,'','Ägg'),I(600,'g','Rivost'),I(null,'','Rivost till topping'),I(null,'','Tomatpuré'),I(null,'','Oregano'),I(null,'','Skinka'),I(null,'','Getost'),I(null,'','Svamp')]),
+R('r13','Risotto','middag',[I(null,'','Risottoris')]),
+R('r14','Rårakor med blodpudding','middag',[I(null,'','Potatis'),I(null,'','Ägg'),I(null,'','Skrädmjöl (ev.)'),I(null,'','Blodpudding'),I(null,'','Svamp')]),
+R('r15','Sötpotatis med bovete','middag',[I(null,'','Sötpotatis'),I(null,'','Bovete'),I(null,'','Fetaost'),I(null,'','Vitkål')]),
+R('r16','Tacos','middag',[I(null,'','Mjuka tacobröd'),I(null,'','Köttfärs'),I(0.25,'paket','Tacokrydda'),I(null,'','Rivost'),I(3,'','Tomater'),I(null,'','Gurka'),I(1,'burk','Majs'),I(2,'','Avokado'),I(null,'','Tacosås'),I(null,'','Crème fraîche')]),
+R('r17','Våfflor (dubbel sats)','middag',[I(6,'','Ägg'),I(4,'msk','Kokosolja'),I(4,'dl','Kokosmjölk'),I(3,'dl','Vatten'),I(3,'dl','Skrädmjöl'),I(4,'tsk','Fiberhusk'),I(4,'tsk','Bakpulver')]),
+R('r19','Auberginegratäng','middag',[I(2,'','Aubergine'),I(2,'','Zucchini'),I(2,'','Fetaost'),I(null,'','Krossade tomater'),I(null,'','Rivost'),I(null,'','Salt, svartpeppar, basilika, chiliflakes')]),
+R('r20','Blomkålssoppa','middag',[I(null,'','Fryst blomkål'),I(null,'','Kokosgrädde'),I(null,'','Persilja'),I(null,'','Vitlök')]),
+R('r21','Bovete med pesto','middag',[I(null,'','Bovete'),I(1,'kruka','Basilika'),I(1,'klyfta','Vitlök'),I(0.5,'dl','Parmesan'),I(0.5,'dl','Solroskärnor'),I(3,'msk','Olivolja'),I(null,'','Cocktailtomater'),I(null,'','Fetaost')]),
+R('r22','Falafel med rotsaker','middag',[I(null,'','Halloumi'),I(null,'','Falafel'),I(null,'','Vitkål'),I(null,'','Broccoli'),I(null,'','Morot'),I(null,'','Palsternacka'),I(null,'','Sötpotatis'),I(null,'','Potatis'),I(null,'','Tahini'),I(null,'','Citron')]),
+R('r23','Fiskbiffar med haricots verts och broccoli (dubbel sats)','middag',[I(2,'paket','Alaska Pollock'),I(2,'','Ägg'),I(4,'msk','Fryst persilja'),I(4,'tsk','Herbamare'),I(3,'msk','Fiberhusk'),I(4,'klyftor','Vitlök'),I(1,'tsk','Chiliflakes'),I(null,'','Crème fraîche'),I(null,'','Citron'),I(null,'','Senap'),I(null,'','Haricots verts'),I(null,'','Broccoli')]),
+R('r24','Fiskgratäng med vitkålsmos','middag',[I(2,'paket','Alaska Pollock'),I(4,'dl','Riven ost'),I(4,'dl','Crème fraîche'),I(1,'','Citron'),I(2,'msk','Dijonsenap'),I(3,'klyftor','Vitlök'),I(null,'','Vitkål'),I(null,'','Haricots verts')]),
+R('r25','Grillad kyckling med plock','middag',[I(null,'','Grillad kyckling'),I(null,'','Morötter'),I(null,'','Tomat'),I(null,'','Paprika')]),
+R('r26','Hamburgare med sötpotatis','middag',[I(null,'','Köttfärs'),I(null,'','Grädde'),I(null,'','Ägg'),I(null,'','Tomatpuré'),I(null,'','Senap'),I(null,'','Tomat'),I(null,'','Cornichons'),I(null,'','Crème fraîche'),I(null,'','Sötpotatis')]),
+R('r27','Keso- och tomatpasta','middag',[I(400,'g','Pastaskruvar/spaghetti'),I(2.5,'dl','Keso'),I(1,'burk','Krossade tomater'),I(1,'klyfta','Vitlök'),I(1,'msk','Oregano'),I(2,'tsk','Lökpulver'),I(1,'dl','Riven parmesan'),I(null,'','Chiliflakes'),I(null,'','Svartpeppar'),I(null,'','Olivolja'),I(null,'','Smör')]),
+R('r28','Kycklingbiffar med knatteplock','middag',[I(500,'g','Kycklingfärs'),I(3,'','Sötpotatis'),I(3,'','Palsternacka'),I(1,'dl','Fryst basilika'),I(2,'klyftor','Vitlök'),I(2,'tsk','Lökpulver'),I(2,'msk','Olivolja/kokosolja'),I(2,'','Äggulor'),I(2,'krm','Svartpeppar')]),
+R('r29','Kycklingfiléer i ugn med blomkålsris och dragonsås','middag',[I(1,'kg','Kycklingfilé'),I(500,'g','Kycklinglår'),I(5,'msk','Soja'),I(2,'tsk','Chiliflakes'),I(2,'tsk','Rosmarin'),I(2,'tsk','Oregano'),I(2,'msk','Rapsolja'),I(2,'klyftor','Vitlök'),I(null,'','Smör'),I(2,'dl','Grädde'),I(2,'dl','Crème fraîche'),I(2,'tsk','Dragon'),I(2,'tsk','Dijonsenap'),I(null,'','Blomkålsris')]),
+R('r30','Kyckling i ugn med soltorkade tomater och havreris','middag',[I(1,'kg','Kyckling'),I(null,'','Soja'),I(null,'','Grädde'),I(null,'','Soltorkade tomater'),I(null,'','Havreris')]),
+R('r31','Kyckling i gul curry med blomkålsris','middag',[I(2,'','Gula lökar'),I(1.5,'kg','Kyckling'),I(2,'klyftor','Vitlök'),I(null,'','Ingefära'),I(2,'paket','Kokosgrädde'),I(null,'','Paprikapulver'),I(null,'','Gul curry'),I(null,'','Broccoli'),I(null,'','Blomkålsris')]),
+R('r32','Köttfärssås med pasta','middag',[I(1.5,'paket','Pasta'),I(500,'g','Köttfärs'),I(1,'burk','Krossade tomater'),I(1,'','Gul lök'),I(1,'klyfta','Vitlök'),I(null,'','Tomatpuré'),I(null,'','Smör')]),
+R('r33','Lasagne','middag',[I(1,'paket','Pastaplattor'),I(500,'g','Köttfärs'),I(1,'burk','Krossade tomater'),I(2,'msk','Tomatpuré'),I(1,'dl','Rödvin'),I(1,'','Buljongtärning/örtsalt'),I(null,'','Babyspenat'),I(0.5,'kruka','Basilika'),I(5,'dl','Rivost'),I(5,'dl','Crème fraîche'),I(0.5,'msk','Oregano'),I(1,'','Gul lök'),I(2,'klyftor','Vitlök'),I(null,'','Salt och peppar')]),
+R('r34','LCHF köttfärsgratäng','middag',[I(500,'g','Nötfärs'),I(2,'','Saltgurkor'),I(2,'','Tomater'),I(1,'klyfta','Vitlök'),I(230,'g','Riven ost'),I(2,'','Ägg'),I(2.5,'dl','Vispgrädde'),I(2,'msk','Tomatpuré'),I(null,'','Salt och peppar')]),
+R('r35','Matpaj','middag',[I(1,'paket','Kikärter'),I(null,'','Pofiber'),I(null,'','Kokosolja'),I(10,'','Ägg'),I(1,'dl','Grädde'),I(null,'','Soltorkade tomater'),I(1,'paket','Fetaost'),I(null,'','Fryst basilika')]),
+R('r36','Morotssoppa','middag',[I(1,'kg','Morötter'),I(1,'klyfta','Vitlök'),I(null,'','Chili'),I(null,'','Buljong'),I(2,'dl','Kokosmjölk'),I(1,'','Tumbit ingefära'),I(0.5,'','Citron'),I(null,'','Kokosolja'),I(null,'','Salt och peppar')]),
+R('r37','Nudelsallad med räkor och jordnötssås','middag',[I(null,'','Räkor'),I(null,'','Rödkål'),I(null,'','Gurka'),I(null,'','Morot'),I(null,'','Nudlar'),I(null,'','Jordnötter'),I(null,'','Halloumi'),I(null,'','Koriander'),I(null,'','Jordnötssmör'),I(null,'','Soja'),I(null,'','Lime'),I(null,'','Ingefära'),I(null,'','Vitlök'),I(null,'','Chili')]),
+R('r38','Panerad ost med blomkål','middag',[I(600,'g','Blockedamer'),I(null,'','Pofiber'),I(null,'','Mandelmjöl'),I(null,'','Ägg'),I(null,'','Rapsolja'),I(null,'','Blomkål'),I(1,'dl','Majonnäs'),I(1,'dl','Crème fraîche'),I(1,'tsk','Senap'),I(4,'','Inlagda gurkor'),I(null,'','Fryst persilja'),I(2,'msk','Kapris'),I(null,'','Citronsaft'),I(null,'','Pepparrot')]),
+R('r39','Pasta carbonara','middag',[I(1,'paket','Pasta'),I(2,'paket','Bacon'),I(6,'','Ägg'),I(1,'dl','Vispgrädde'),I(2,'dl','Riven parmesan')]),
+R('r40','Persiljekyckling','middag',[I(1500,'g','Kycklingfilé/innerfilé'),I(2,'','Gul lök'),I(4,'klyftor','Vitlök'),I(6,'dl','Grädde'),I(4,'dl','Crème fraîche'),I(2,'msk','Citronjuice/vinäger'),I(1,'dl','Riven parmesan'),I(1,'dl','Hackad persilja')]),
+R('r41','Pulled beef med blomkålsris','middag',[I(null,'','Blomkålsris'),I(null,'','Högrev'),I(2,'','Morötter'),I(2,'','Gula lökar'),I(3,'klyftor','Vitlök'),I(null,'','Färsk timjan'),I(null,'','Örtsalt'),I(1,'tsk','Sambal'),I(2,'msk','Tomatpuré'),I(2,'dl','Vatten')]),
+R('r42','Rotsaker i ugn med halloumi','middag',[I(null,'','Halloumi'),I(null,'','Palsternacka'),I(null,'','Broccoli'),I(null,'','Zucchini'),I(null,'','Morötter'),I(null,'','Vitlök'),I(null,'','Vitkål')]),
+R('r43','Saffransfisksoppa','middag',[I(2,'paket','Alaska Pollock'),I(200,'g','Räkor'),I(1,'dl','Vitt vin/citron'),I(250,'g','Haricots verts'),I(1,'','Broccolibukett'),I(1,'klyfta','Vitlök'),I(0.25,'','Chili'),I(1,'','Gul lök'),I(500,'ml','Kokosmjölk'),I(1,'l','Buljong'),I(1,'paket','Saffran'),I(null,'','Salt och peppar')]),
+R('r44','Sommarrullar','middag',[I(null,'','Rispapper'),I(null,'','Gurka'),I(null,'','Vitkål'),I(null,'','Räkor'),I(null,'','Morot'),I(null,'','Jordnötssmör'),I(null,'','Soja'),I(null,'','Ingefära'),I(null,'','Chili'),I(null,'','Lime/citron'),I(null,'','Koriander'),I(null,'','Sesamolja')]),
+R('r45','Sydfransk fisksoppa','middag',[I(1,'paket','Alaska Pollock'),I(200,'g','Lax'),I(1.5,'dl','Skalade räkor'),I(2.5,'dl','Grädde'),I(1,'burk','Krossade tomater'),I(1,'','Fänkål'),I(1,'','Lök'),I(1,'','Citron'),I(1,'msk','Dragon'),I(1,'tsk','Rosmarin'),I(2.5,'tsk','Herbamare'),I(2,'msk','Fryst persilja'),I(1,'','Zucchini eller broccoli')]),
+R('r46','Thaigryta med havreris','middag',[I(1,'','Gul lök'),I(2,'klyftor','Vitlök'),I(1,'','Zucchini'),I(1,'tsk','Currypasta'),I(0.5,'','Chili'),I(1,'msk','Riven ingefära'),I(4,'dl','Kokosmjölk'),I(5,'dl','Vatten'),I(3,'dl','Havreris'),I(1,'','Lime/citron'),I(1,'msk','Fryst koriander'),I(null,'','Kikärtor/halloumi'),I(null,'','Kyckling (valfritt)')]),
+R('r47','Torskrygg med kokt potatis och skirat smör','middag',[I(6,'bitar','Torskrygg'),I(null,'','Potatis'),I(null,'','Smör'),I(null,'','Citron')]),
+R('r48','Korv med klyftpotatis','middag',[]),
+R('r49','Tacobiffar med sås och sallad','middag',[]),
+R('r50','Älgfärsbullar med mos och brunsås','middag',[]),
+R('r51','Saffransfisk i ugn','middag',[]),
+R('r52','Köpeköttbullar med plock','middag',[]),
+R('r53','Fisknuggets och halloumi','middag',[]),
+R('r54','Bowl med räkor','middag',[]),
+R('r55','Grönkålspesto med tillbehör','middag',[]),
+R('r56','Pasta med plock','middag',[]),
+R('r57','Pinsa','middag',[I(null,'','Pinsabotten'),I(null,'','Rivost'),I(null,'','Tomatpuré'),I(null,'','Topping')]),
+R('r58','Pasta med pesto','middag',[I(null,'','Pasta'),I(null,'','Pesto'),I(null,'','Parmesan')]),
+R('r59','Kikärtsbollar','lunch',[I(4,'','Morötter'),I(6,'dl','Havregryn'),I(2,'','Gulbruna bananer'),I(4,'msk','Solros-/pumpakärnor'),I(2,'tsk','Kanel'),I(2,'tsk','Kardemumma'),I(2,'tsk','Torkad mald ingefära'),I(2,'dl','Vita bönor/kikärtor'),I(null,'','Salt')]),
+R('r18','Rester','lunch',[]),
+R('l01','Potatissallad','lunch',[]),
+R('l02','Melonsallad','lunch',[]),
+R('l03','Grönsaker med dipp','lunch',[]),
+R('l04','Nachochips med röra eller crème fraîche','lunch',[]),
+R('l05','Smoothie','lunch',[]),
+R('l06','Keso eller yoghurt med granola','lunch',[]),
+R('l07','Ostar, oliver och chark','lunch',[]),
+R('l08','Matig macka','lunch',[]),
+R('l09','Pannkaka','lunch',[]),
+R('l10','Kesowrap','lunch',[]),
+R('l11','Avokado och ägg','lunch',[]),
+R('l12','Ägg och bacon','lunch',[]),
+R('l13','Scrambled eggs och bacon','lunch',[I(12,'','Ägg'),I(2,'paket','Bacon'),I(null,'','Smör'),I(null,'','Parmesan')]),
+R('l14','Makrill i tomatsås','lunch',[]),
+R('l15','Knäckebröd/fröbröd','lunch',[]),
+R('l16','Havre-/kvargbröd','lunch',[]),
+R('l17','Spansk tortilla','lunch',[]),
+R('l18','Quinoasallad','lunch',[I(3,'dl','Quinoa'),I(null,'','Gurka'),I(null,'','Paprika'),I(null,'','Persilja'),I(null,'','Fetaost'),I(null,'','Tomat'),I(null,'','Citron'),I(null,'','Crème fraîche'),I(null,'','Oliver')]),
+R('l19','Ostpannkaka','lunch',[I(10,'','Ägg'),I(1,'dl','Grädde'),I(null,'','Ost'),I(null,'','Citron')]),
+R('l20','Bananpannkaka','lunch',[]),
+R('l21','Pytt i panna','lunch',[]),
+R('l22','Grekisk sallad med kokt ägg och melon','lunch',[I(null,'','Tomat'),I(null,'','Fetaost'),I(null,'','Olivolja'),I(null,'','Vinäger'),I(null,'','Ägg'),I(null,'','Melon')]),
+R('l23','Pesto med quinoa och tillbehör','lunch',[I(null,'','Vit quinoa'),I(null,'','Pesto'),I(null,'','Fetaost'),I(null,'','Små tomater'),I(null,'','Gurka'),I(null,'','Oliver'),I(null,'','Citron/crème fraîche/örtsalt'),I(null,'','Avokado'),I(null,'','Morotsstavar')]),
+R('l24','Tonfiskwraps','lunch',[I(null,'','Crème fraîche'),I(null,'','Senap'),I(null,'','Citron'),I(null,'','Tonfisk'),I(null,'','Vitkål'),I(null,'','Paprika'),I(null,'','Ägg'),I(null,'','Grädde'),I(null,'','Pofiber')]),
+R('l25','Wraps med kyckling och curryröra','lunch',[I(null,'','Grillad kyckling'),I(null,'','Crème fraîche'),I(null,'','Curry'),I(null,'','Paprika'),I(null,'','Ägg'),I(null,'','Grädde'),I(null,'','Pofiber')]),
+R('l26','Tjeckisk potatissallad','lunch',[I(2,'kg','Potatis'),I(2,'','Morötter'),I(0.5,'','Rotselleri'),I(2,'','Palsternacka'),I(1,'','Lök'),I(1,'','Äpple'),I(2,'','Ättiksgurkor'),I(2,'burk','Kapris'),I(0.5,'burk','Inlagda ärtor'),I(2,'dl','Majonnäs'),I(null,'','Citron'),I(null,'','Salt och peppar')]),
+R('l27','Varma mackor','lunch',[]),
+R('l28','Take away','lunch',[]),
+R('l29','Snacks','lunch',[I(null,'','Muffins'),I(null,'','Melon och nötter'),I(null,'','Kokoschips'),I(null,'','Macka'),I(null,'','Ost och korv'),I(null,'','Oliver och ölkorv'),I(null,'','Banan och äpple')])
+];
+
+function D(r,meal,txt){return{id:'s'+Math.random().toString(36).slice(2,8),recipeId:r,portions:4,meal:meal||'middag',matlada:false,text:txt||''}}
+function emptyWeek(){return{wed:[],thu:[],fri:[],sat:[],sun:[],mon:[],tue:[]}}
+
+
+var SNABB=['Alaska Pollock','Ananas','Apelsin','Aubergine','Avokado','Bananer','Basilika färsk','Blodpudding',
+ 'Blomkål','Bostongurka','Bovete','Bovetekex','Broccoli','Buljong','Chili','Chiliflakes','Chilisås','Chips','Choklad',
+ 'Citron','Clementiner','Cocktailtomater','Cornichons','Curry gul','Dadlar','Dammsugarpåsar','Dijonsenap','Dill färsk',
+ 'Falafel','Fetaost','Fryst basilika','Fryst blomkål','Fryst dill','Fryst koriander','Fryst persilja','Fänkål',
+ 'Färskpotatis','Getost','Glass','Grillad kyckling','Gräslök','Grötris','Gul lök','Gurka','Halloumi','Hamburgerbröd',
+ 'Haricots verts','Havregryn','Havremjöl','Havremjölk','Havssalt','Herbamare','Högrev','Ingefära','Jordnötssmör',
+ 'Kaffe','Kaffefilter','Kakao','Kanel','Kapris','Kardemumma','Kaviar','Keso','Ketchup','Kikärtor','Kokosflingor',
+ 'Kokosolja','Kombucha','Korv','Korvbröd','Krossade tomater','Kryddor lösvikt','Kvarg','Kycklingfilé','Kycklingfärs',
+ 'Kycklinglår','Lagerblad','Lasagneplattor','Lax','Lime','Lökpulver','Majonnäs','Majs på burk',
+ 'Makrill i tomatsås','Melon','Mjuka tortillas','Morötter','Mozzarella','Nötfärs','Olivolja','Oliver','Oregano',
+ 'Palsternacka','Paprika','Paprikapulver','Pasta','Pastaplattor','Pepparrot','Persilja färsk','Pesto','Plåster',
+ 'Potatis','Potatismjöl','Purjolök','Päron','Quinoa','Rapsolja','Rispapper','Risottoris','Rosmarin','Rostad lök',
+ 'Rotselleri','Rödkål','Rödlök','Rödspätta','Räkor','Saffran','Salami','Saltgurka','Sambal','Senap','Sesamolja',
+ 'Skinka','Skrädmjöl','Soja tamari','Soltorkade tomater','Solroskärnor','Strösocker','Surkål','Svamp','Sötpotatis',
+ 'Såpa','Tacokrydda','Tahini','Tetra kokosmjölk','Timjan','Tomat','Tomatpuré','Tonfisk','Torskrygg','Vindruvor',
+ 'Vita bönor','Vitkål','Vitlök','Ättiksprit','Ölkorv','Äpplen','Ärtor frysta'];
+
+var SEED_GRUND=[
+ 'Grillkol','Ruccola','Färsk basilika','Dadlar eko','Kokosnöt','Snacksmorötter','Korvbröd 3 pkt',
+ 'Hamburgerbröd 6','Glutenfria korvbröd','Bröd Leväjn','Kokt majskolv','Nachochips','Mjuka tortillas',
+ 'Jalapeños','Tacosås 1','Tacokrydda','Currypasta','Risnudlar 2','Rispapper','Tahini slät','Tahini eko',
+ 'Tetra kokosmjölk','Tetra kokosgrädde 4','Tetra kokosgrädde eko 4','Soja tamari','Grädde 5','Kvarg (kesella)',
+ 'Crème fraîche 4','Gräddfil','6 dl filmjölk','Keso','Ägg 3x18','Turkisk yoghurt','Smör','Bregott',
+ 'Naturell yoghurt','Lasagneplattor','Havremjölk liten','Ajvar','Granola','Eko pumpakärnor','Eko solroskärnor',
+ 'Skalade sesamfrön','Bönpasta spaghetti','Bönpastaskruvar','Quinoa vit','Havreris','Risottoris - Willys',
+ 'Cornichons','Cannellonibönor 2','Bostongurka','Tonfisk','Makrill i tomatsås filéer','Pesto',
+ 'Oliver utan kärnor 2','Oliver med kärnor gröna 3','Soltorkade tomater','Kapris',
+ 'Krossade tomater - Willys 3','Vita bönor','Kikärtor 1','Svarta bönor','Majs på burk eko','Havregryn',
+ 'Havremjöl - Willys','Pofiber','Majs- och rispasta 2','Rostad lök glutenfri','Kaffefilter 1x4','Kaffe 2',
+ 'Vaniljsocker','Karamellfärg','Potatismjöl','Jordnötssmör creamy','Jordnötssmör crunchy 2','Kakao',
+ 'Strösocker eko','Kokosflingor 2','Grillad kyckling','Johnnys Yellow mustard','Osötad ketchup',
+ 'Kallrökt lax 500g','Matjessill 2','Tomatpuré','Kokosolja','Olivolja','Rapsolja','Chilisås - Willys',
+ 'Ättiksprit','Viltsvinsfärs','Hamburgarbiffar 8','Pinsabotten','Varmkorv','Kycklingfärs 500g',
+ 'Färsk lax 600-700g','Varmrökt lax','Blodpudding','Skinka smörgås','Rivost','Hyvelost','Ost till panerad ost',
+ 'Fetaost 5','Grillost/halloumi 2','Kaviar','Rom','Mozzarella 4','Parmesan 1','Babybell','Herbamare',
+ 'Fröknäcke 3','Flingsalt','Färskost','Brie','Getost pizza','Prosciutto','Salami','Ölkorv','Laxsida',
+ 'Haricot verts','Majskolvar frysta','Fryst majs','Frysta ärtor','Blomkålsris','Pommes','Fryst blomkål',
+ 'Fryst basilika - Willys 1','Fryst persilja - Willys','Fryst dill - Willys','Fryst koriander - Willys',
+ 'Fryst gräslök','Alaska Pollock 2','Torskrygg 6','Rödspätta','Lax 4 bitar','Skalade räkor','Räkor med skal',
+ 'Fiskpinnar Findus','Fish & fun 1','Kalkonfärs','Kycklingfilé 2kg','Kycklinginnerfilé 2','Kycklingklubba 1',
+ 'Frysta köttbullar','Fryst pizza','Pytt i panna','Fryst glutenfritt bröd röd förpackning',
+ 'Fryst glutenfritt bröd Martas havrefrallor','Pappersnäsdukar','Plackers','TePe EasyPick blå','Tandpetare',
+ 'Frysta blåbär','Frysta hallon','Frysta lingon','Fryst mango','Frysta jordgubbar eko','Frysta körsbär',
+ 'Nötter lösvikt','Festis','Bubbelvatten naturell burk','Lättöl','Folköl','Alkoholfri öl','Jordnötter 2',
+ 'Kokoschips','Kakaodoppade dadlar','Russin eko','Torkad mango','Mangostång 3','Torkade aprikoser 2',
+ 'Hasselnötter - Willys','Pinjenötter topping pizza','Flytande honung','Potatischips','Räfflade',
+ 'Lättsaltade 1','Paprikachips','Ranch','Pinjenötter','Toapapper','Hushållspapper','Serla Maximeter',
+ 'Våtservetter','Maskindiskmedel','Kulörtvättmedel 2','Tvättmedel vittvätt 1','Tvättsvampar',
+ 'Bakplåtspapper - Willys','Gladpack','Soppåsar','Fryspåsar 3l','Fryspåsar 2l','Växtnäring',
+ 'Klorin / star san','Dammsugarpåsar','Braständare','Proppar 10a','Knappnålsbatterier LR44','Tomtebloss',
+ 'Mörk choklad 85%','Mörk choklad havssalt','Mörk choklad hasselnöt','Mörk choklad 70% eko','Saffran'];
+var SEED_FRAM=[
+ 'Glass','Hasselnötter - Fram','Lösvikt nötter','Mandlar','Valnötter','Torkad frukt','Bovete lösvikt',
+ 'Grötris','Havremjöl - Fram','Skrädmjöl','Risottoris - Fram','Finkornigt salt','Havssalt','Aleppotvål',
+ 'Diskmedel refill','Galltvål','Handtvål','Såpa','Ulltvättmedel','Bakplåtspapper - Fram','Bomullspinnar eko',
+ 'Barntandborste','Tandborstar barnen','Tandkräm barnen','Tandkräm vuxen','Plåster','Deo','Bovetekex',
+ 'Choklad','Chips','Krossade tomater - Fram','Dijonsenap','Senap','Sesamolja','Chilisås - Fram','Sambal olek',
+ 'Äppelcidervinäger','Surkål','Syrad rödkål','Pepparrot','Bacon','Korv','Falafel','Tacobröd glutenfria',
+ 'Glutenfri pizzabotten','Chiliflakes','Curry gul','Dragon','Kanel','Kardemumma','Lagerblad','Lökpulver',
+ 'Malen koriander','Malen kummin','Mejram','Oregano','Paprikapulver','Rosmarin','Rökt paprika','Spiskummin',
+ 'Svartpeppar','Timjan','Vitlökspulver','Fryst basilika - Fram','Fryst dill - Fram','Fryst koriander - Fram',
+ 'Fryst persilja - Fram','Glutenfritt bröd mörkt','Ananas','Apelsin','Bananer','Citron','Clementiner',
+ 'Granatäpple','Lime','Melon','Nektariner','Päron','Vattenmelon','Vindruvor','Äpple','Aubergine','Avokado',
+ 'Basilika färsk','Bladspenat','Blomkål','Broccoli','Champinjoner','Chili','Cocktailtomater','Dill färsk',
+ 'Färsk persilja','Färsk dill','Fänkål','Gräslök','Grönkål','Gurka','Koriander','Mynta färsk','Paprika',
+ 'Pumpa butternut','Rödkål','Salladslök','Selleristjälkar','Svamp','Timjan färsk','Tomat','Tomater små',
+ 'Vitkål','Zucchini','Gul lök','Ingefära','Morötter','Palsternacka','Purjolök','Potatis','Färskpotatis',
+ 'Rotselleri','Rödlök','Sötpotatis','Vitlök','Kombucha'];
+function SEED_STD(){
+  var w=[],i;
+  for(i=0;i<6;i++)w.push({n:i+1,days:emptyWeek()});
+  w[0].days.wed=[D('r07','middag','')];
+  w[0].days.thu=[D('r09','middag','')];
+  w[0].days.fri=[D('r12','middag','')];
+  w[0].days.sat=[D('r18','lunch','Rester pizza'),D('l13','middag','')];
+  w[0].days.sun=[D('r25','lunch',''),D('r05','middag','')];
+  w[0].days.mon=[D('r15','middag','')];
+  w[0].days.tue=[D('r08','middag','')];
+  w[1].days.wed=[D('r43','middag','')];
+  w[1].days.thu=[D('r39','middag','')];
+  w[1].days.fri=[D('r16','middag','')];
+  w[1].days.sat=[D('r04','lunch',''),D('r17','middag','')];
+  w[1].days.sun=[D('l27','lunch',''),D('r06','middag','')];
+  w[1].days.mon=[D('r47','middag','')];
+  w[1].days.tue=[D('r33','middag','')];
+  w[2].days.wed=[D('r29','middag','')];
+  w[2].days.thu=[D('r01','middag','')];
+  w[2].days.fri=[D('l28','middag','')];
+  w[2].days.sat=[D('l23','lunch',''),D('r12','middag','')];
+  w[2].days.sun=[D('r10','lunch',''),D('r32','middag','')];
+  w[2].days.mon=[D('r31','middag','')];
+  w[2].days.tue=[D('r03','middag','')];
+  w[3].days.wed=[D('r11','middag','')];
+  w[3].days.thu=[D('r27','middag','')];
+  w[3].days.fri=[D('r35','middag','')];
+  w[3].days.sat=[D('l19','lunch',''),D('r16','middag','')];
+  w[3].days.sun=[D('r02','lunch',''),D('r17','middag','')];
+  w[3].days.mon=[D('r22','middag','')];
+  w[3].days.tue=[D('r23','middag','')];
+  w[4].days.wed=[D('r48','middag','')];
+  w[4].days.thu=[D('r20','middag','')];
+  w[4].days.fri=[D('r44','middag','')];
+  w[4].days.sat=[D('r14','middag','')];
+  w[5].days.wed=[D('r30','middag','')];
+  return w;
+}
+
+var SEED_OTHER=[
+ {n:'Köttfärs',b:'Gröna gårdar'},{n:'Grillkorv',b:'Gröna gårdar'},{n:'Merguez',b:'Gröna gårdar'},
+ {n:'Leverpastej',b:'Gröna gårdar'},{n:'Gruvkorv',b:'Gröna gårdar'},{n:'Prinskorv',b:'Gröna gårdar'},
+ {n:'Fiberhusk',b:'Bodystore'},{n:'Bakpulver',b:'Bodystore'},{n:'Mandelmjöl',b:'Bodystore'},
+ {n:'Majonäs',b:'Coop'},{n:'Bacon',b:'ICA'}];
+var FRAM_VAROR=SEED_FRAM;
+function seedShops(){
+  var m={};
+  SEED_FRAM.forEach(function(n){m[normName(n)]='fram'});
+  SEED_GRUND.forEach(function(n){m[normName(n)]='willys'});
+  SEED_OTHER.forEach(function(o){m[normName(o.n)]='other'});
+  return m;
+}
+function seedStoreNames(){
+  var m={};SEED_OTHER.forEach(function(o){m[normName(o.n)]=o.b});return m;
+}
+/* ---------------- state ---------------- */
+var S,current='plan',sub='week',LIST_fram=[],LIST_willys=[];
+function uid(){return 'x'+Math.random().toString(36).slice(2,9)}
+function fresh(){
+  return{recipes:SEED_RECIPES.slice(),weeks:SEED_STD(),activeWeeks:[1,2],editWeek:1,
+   grund:SEED_GRUND.map(function(n){return{id:uid(),name:n}}),
+   framList:SEED_FRAM.map(function(n){return{id:uid(),name:n}}),
+   otherList:SEED_OTHER.map(function(o){return{id:uid(),name:o.n,store:o.b}}),
+   storeName:seedStoreNames(),
+   extra:[],checked:{},approved:{},later:{},shopOf:seedShops(),editing:false,cookWeek:null,
+   ordFram:SEED_FRAM.map(normName),
+   ordWillys:SEED_GRUND.map(normName),
+   startDay:'wed',endDay:'tue',temp:{},freshOf:{},qty:{},alias:{},cookDay:'wed',cookTab:0,showDone:false};
+}
+function load(){
+  var raw=store.get(KEY);
+  if(!raw){S=fresh();return}
+  try{
+    S=JSON.parse(raw);
+    if(!S.weeks||!S.weeks.length)S.weeks=SEED_STD();
+    if(!S.recipes||!S.recipes.length)S.recipes=SEED_RECIPES.slice();
+    if(!S.grund)S.grund=SEED_GRUND.map(function(n){return{id:uid(),name:n}});
+    if(!S.framList)S.framList=SEED_FRAM.map(function(n){return{id:uid(),name:n}});
+    if(!S.otherList)S.otherList=SEED_OTHER.map(function(o){return{id:uid(),name:o.n,store:o.b}});
+    if(!S.storeName)S.storeName=seedStoreNames();
+    if(!S.extra)S.extra=[];if(!S.checked)S.checked={};if(!S.approved)S.approved={};
+    if(!S.shopOf)S.shopOf=seedShops();
+    if(!S.activeWeeks)S.activeWeeks=S.activeWeek?[S.activeWeek]:[1];
+    if(!S.later)S.later={};
+    if(!S.editWeek)S.editWeek=S.activeWeeks[0]||1;
+    if(!S.ordFram)S.ordFram=SEED_FRAM.map(normName);
+    if(!S.ordWillys)S.ordWillys=SEED_GRUND.map(normName);
+    if(S.editing===undefined)S.editing=false;
+    if(!S.startDay)S.startDay='wed';if(!S.endDay)S.endDay='tue';if(!S.temp)S.temp={};
+    if(!S.freshOf)S.freshOf={};if(!S.qty)S.qty={};if(!S.alias)S.alias={};
+  }catch(e){S=fresh()}
+}
+function save(){store.set(KEY,JSON.stringify(S))}
+/* Engångsuppdatering av butiksordningen. Rör ingenting annat:
+   färskmärkning, butikstillhörighet, bockar, antal och veckor lämnas orörda. */
+var ORDER_STAMP='butiksordning-2026-09-29b';
+function applyNewOrder(){
+  if(S.orderStamp===ORDER_STAMP)return;
+  S.ordWillys=SEED_GRUND.map(normName);
+  S.ordFram=SEED_FRAM.map(normName);
+  S.orderStamp=ORDER_STAMP;
+  save();
+}
+function rec(id){for(var i=0;i<S.recipes.length;i++)if(S.recipes[i].id===id)return S.recipes[i];return null}
+function wk(n){for(var i=0;i<S.weeks.length;i++)if(S.weeks[i].n===n)return S.weeks[i];return null}
+function tkey(n,d){return n+'|'+d}
+function dayDishes(wn,day){
+  var t=S.temp[tkey(wn,day)];
+  if(t)return t;
+  var w=wk(wn);if(!w)return [];
+  w.days[day]=w.days[day]||[];
+  return w.days[day];
+}
+function isTemp(wn,day){return !!S.temp[tkey(wn,day)]}
+function clearTemp(wn,day){delete S.temp[tkey(wn,day)];save();render();toast('Tillbaka till standardveckan')}
+function makeTemp(wn,day){
+  if(!S.temp[tkey(wn,day)])S.temp[tkey(wn,day)]=JSON.parse(JSON.stringify((wk(wn)||{days:{}}).days[day]||[]));
+  return S.temp[tkey(wn,day)];
+}
+function actWeeks(){
+  var out=[];S.activeWeeks.forEach(function(n){var w=wk(n);if(w)out.push(w)});
+  return out.length?out:[S.weeks[0]];
+}
+function isActive(n){return S.activeWeeks.indexOf(n)>-1}
+function actLabel(){
+  var a=S.activeWeeks;
+  return a.length>1?'vecka '+a[0]+' och '+a[1]:'vecka '+a[0];
+}
+function cookWeekNo(){
+  var a=S.activeWeeks;
+  return (S.cookWeek&&a.indexOf(S.cookWeek)>-1)?S.cookWeek:a[0];
+}
+function cookDays(){var o={},n=cookWeekNo();DAYS.forEach(function(d){o[d[0]]=dayDishes(n,d[0])});return o}
+/* dag 0 = onsdag i första aktiva veckan */
+function dayOffset(dayKey,weekPos){
+  var i=0;DAYS.forEach(function(d,k){if(d[0]===dayKey)i=k});
+  return weekPos*7+i;
+}
+function offsetLabel(off){
+  var d=DAYS[off%7][1],w=Math.floor(off/7);
+  return d.slice(0,3)+' v'+(S.activeWeeks[w]||'?');
+}
+var FRESH=['sallad','gurka','tomat','avokado','banan','melon','broccoli','blomkål','paprika','zucchini',
+ 'aubergine','svamp','morot','purjo','spenat','basilika','persilja','dill','koriander','gräslök','kruka',
+ 'lax','fisk','torsk','räkor','pollock','kyckling','färs','kött','korv','bacon','skinka','blodpudding',
+ 'grädde','crème','keso','kvarg','yoghurt','mjölk','färskost','falukorv','chark','ägg','citron','lime',
+ 'apelsin','clementin','vindruvor','äpple','päron','fetaost','mozzarella','halloumi','rotselleri','vitkål','kål'];
+function autoFresh(n){
+  var t=n.toLowerCase();
+  if(t.indexOf('fryst')>-1||t.indexOf('frysta')>-1||t.indexOf('konserv')>-1||t.indexOf('burk')>-1)return false;
+  for(var i=0;i<FRESH.length;i++)if(t.indexOf(FRESH[i])>-1)return true;
+  return false;
+}
+function isFresh(n){
+  var v=S.freshOf[normName(n)];
+  return v===undefined?autoFresh(n):v;
+}
+function toggleFresh(n){
+  var k=normName(n);
+  S.freshOf[k]=!isFresh(n);
+  if(S.freshOf[k]===autoFresh(n))delete S.freshOf[k];
+  save();render();
+  toast(n+(isFresh(n)?' är färskvara':' är inte färskvara'));
+}
+var LATER_FROM=4; /* behövs dag 5 eller senare */
+function autoLater(it){return !!(it.fresh&&it.off>=LATER_FROM)}
+function isLater(it){
+  if(S.later[it.key]===true)return true;
+  if(S.later[it.key]===false)return false;
+  return autoLater(it);
+}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function q1(s){return String(s).replace(/'/g,"\\'")}
+function dayName(k){for(var i=0;i<DAYS.length;i++)if(DAYS[i][0]===k)return DAYS[i][1];return k}
+function bySv(a,b){return a.n.localeCompare(b.n,'sv')}
+function fmtQ(n){
+  if(n==null)return '';
+  n=Math.round(n*100)/100;
+  if(Math.abs(n-0.5)<.001)return '½';
+  if(Math.abs(n-0.25)<.001)return '¼';
+  if(n%1===0)return String(n);
+  return String(n).replace('.',',');
+}
+function scaled(ing,p,bas){return ing.q==null?null:ing.q*(p/(bas||4))}
+function dishName(d){var r=rec(d.recipeId);return d.text||(r?r.name:'Okänd rätt')}
+function dishCount(w){var n=0;DAYS.forEach(function(d){n+=dayDishes(w.n,d[0]).length});return n}
+
+/* ---------------- navigering ---------------- */
+var TITLES={plan:'Planera',shop:'Handla',cook:'Laga',more:'Inställningar'};
+var SUBS={week:'Veckoplan',shop:'Inköpslista',recipes:'Recept'};
+function go(v,s){
+  current=v;if(s)sub=s;
+  document.querySelectorAll('.view').forEach(function(e){e.classList.remove('on')});
+  document.getElementById('v-'+v).classList.add('on');
+  document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
+  document.getElementById('hdr').firstChild.nodeValue=TITLES[v];
+  window.scrollTo(0,0);render();
+}
+function setSub(s){sub=s;render();window.scrollTo(0,0)}
+function render(){
+  var subtitle='';
+  if(current==='plan'){renderPlan();subtitle=SUBS[sub]+' · vecka '+S.editWeek}
+  else if(current==='shop'){renderShop();subtitle='Butiksordning · '+actLabel()}
+  else if(current==='cook'){renderCook();subtitle='Vecka '+cookWeekNo()}
+  else{renderMore();subtitle='Data och underhåll'}
+  document.getElementById('hdrsub').textContent=subtitle;
+  syncFab();
+}
+
+/* ---------------- PLANERA ---------------- */
+function renderPlan(){
+  var h='<div class="subtabs">';
+  ['week','shop','recipes'].forEach(function(k){
+    h+='<button class="'+(sub===k?'on':'')+'" onclick="setSub(\''+k+'\')">'+SUBS[k]+'</button>';
+  });
+  h+='</div>';
+  h+=(sub==='week'?planWeek():sub==='shop'?planShop():planRecipes());
+  document.getElementById('v-plan').innerHTML=h;
+}
+
+function planWeek(){
+  var n=S.editWeek,w=wk(n)||S.weeks[0],tot=S.weeks.length,i=S.weeks.indexOf(w),
+      act=isActive(w.n),h='';
+  h+='<div class="wknav">'+
+    '<button class="arw" onclick="stepWeek(-1)"'+(i<=0?' style="opacity:.35"':'')+'>&lsaquo;</button>'+
+    '<div class="lbl">Vecka '+w.n+'<div class="tiny" style="font-weight:400">'+dishCount(w)+' rätter &middot; '+tot+' veckor i rotationen</div></div>'+
+    '<button class="arw" onclick="stepWeek(1)"'+(i>=tot-1?' style="opacity:.35"':'')+'>&rsaquo;</button></div>';
+  h+='<div class="card" style="padding:12px 14px;margin-bottom:14px">'+
+     '<div class="row"><span class="grow tiny">'+(act
+       ?'Ingår i inköp och Laga.'
+       :'Ingår inte i inköpslistan.')+'</span>'+
+     '<button class="mv'+(act?' hint':'')+'" onclick="toggleActive('+w.n+')">'+(act?'Aktiv':'Gör aktiv')+'</button></div>'+
+     '<div class="tiny" style="margin-top:7px">Handlar just nu för '+actLabel()+'. Max två veckor åt gången.</div></div>';
+  DAYS.forEach(function(d){h+=dayCard(w.n,d[0])});
+  h+='<div class="row" style="gap:9px;margin-top:6px">'+
+     '<button class="btn quiet grow" onclick="addWeek()">Ny vecka</button>'+
+     '<button class="btn quiet grow" onclick="clearWeek('+w.n+')">Töm vecka '+w.n+'</button></div>';
+  return h;
+}
+function stepWeek(d){
+  var i=S.weeks.indexOf(wk(S.editWeek))+d;
+  if(i<0||i>=S.weeks.length)return;
+  S.editWeek=S.weeks[i].n;save();render();window.scrollTo(0,0);
+}
+function toggleActive(n){
+  var a=S.activeWeeks,i=a.indexOf(n);
+  if(i>-1){
+    if(a.length===1){toast('Minst en vecka måste vara aktiv');return}
+    a.splice(i,1);
+  }else{
+    if(a.length>=2)a.shift();
+    a.push(n);a.sort(function(x,y){return x-y});
+  }
+  S.checked={};S.approved={};S.later={};save();render();
+  toast('Handlar för '+actLabel());
+}
+function addWeek(){
+  var n=1;S.weeks.forEach(function(w){if(w.n>=n)n=w.n+1});
+  S.weeks.push({n:n,days:emptyWeek()});S.editWeek=n;save();render();toast('Vecka '+n+' skapad');
+}
+function clearWeek(n){
+  if(!confirm('Töm vecka '+n+'?'))return;
+  var w=wk(n);if(!w)return;
+  w.days=emptyWeek();if(isActive(n)){S.checked={};S.approved={};S.later={}}
+  save();render();
+}
+function dayCard(wn,key){
+  var dishes=dayDishes(wn,key),tmp=isTemp(wn,key),h='';
+  h+='<div class="day"><div class="day-head"><b>'+dayName(key)+'</b>'+
+     (dishes.length>1?'<span class="tiny">'+dishes.length+' rätter</span>':'')+
+     (tmp?'<span class="pill q">bara denna gång</span>':'')+'</div><div class="card">';
+  if(!dishes.length)h+='<div class="tiny" style="padding:13px">Inget planerat</div>';
+  dishes.forEach(function(d,i){
+    h+='<div class="dish"><button class="grow" style="text-align:left" onclick="editDish('+wn+',\''+key+'\','+i+')">'+
+       '<div class="nm">'+esc(dishName(d))+'</div>'+
+       '<div class="meta"><span>'+d.portions+' port</span>'+
+       (d.meal==='lunch'?'<span class="pill">Lunch</span>':'')+
+       (d.matlada?'<span class="pill box">Matlåda</span>':'')+
+       '<span class="mv">flytta &amp; ändra</span></div></button>'+
+       '<button class="x" onclick="delDish('+wn+',\''+key+'\','+i+')">&times;</button></div>';
+  });
+  h+='<div class="addrow"><button onclick="addDish('+wn+',\''+key+'\')">+ Lägg till rätt</button>'+
+     (tmp?' <button style="color:var(--danger);font-weight:600;font-size:14px;margin-left:12px" onclick="clearTemp('+wn+',\''+key+'\')">återställ dagen</button>':'')+
+     '</div></div></div>';
+  return h;
+}
+function addDish(wn,day){
+  var mid=S.recipes.filter(function(r){return r.type==='middag'}).sort(function(a,b){return a.name.localeCompare(b.name,'sv')}),
+      lun=S.recipes.filter(function(r){return r.type==='lunch'}).sort(function(a,b){return a.name.localeCompare(b.name,'sv')});
+  var opt=function(r){
+    var p=placeLabel(r.id,3);
+    return '<option value="'+r.id+'">'+esc(r.name)+(p?'  ·  '+esc(p):'')+'</option>';
+  };
+  var o='<optgroup label="Middagar">';
+  mid.forEach(function(r){o+=opt(r)});
+  o+='</optgroup><optgroup label="Lunch &amp; mellanmål">';
+  lun.forEach(function(r){o+=opt(r)});
+  o+='</optgroup>';
+  sheetOpen('<h2>Lägg till rätt</h2><div class="tiny" style="margin:-6px 0 12px">'+dayName(day)+' &middot; vecka '+wn+'</div>'+
+    '<div class="field"><label>Rätt</label><select id="f_r">'+o+'</select></div>'+
+    '<div class="field"><label>Portioner</label><input type="number" id="f_p" value="4" min="1" max="30"></div>'+
+    '<div class="field"><label>Måltid</label><select id="f_m"><option value="middag">Middag</option><option value="lunch">Lunch</option></select></div>'+
+    '<div class="field"><label>Egen text, valfritt</label><input type="text" id="f_t" placeholder="t.ex. Rester pizza"></div>'+
+    '<div class="field"><label class="row" style="gap:9px"><input type="checkbox" id="f_b" style="width:auto"> Extra för matlåda</label></div>'+
+    '<button class="btn wide" onclick="saveDish('+wn+',\''+day+'\')">Lägg till</button>');
+}
+function saveDish(wn,day){
+  dayDishes(wn,day).push({id:uid(),recipeId:document.getElementById('f_r').value,
+    portions:parseInt(document.getElementById('f_p').value,10)||4,
+    meal:document.getElementById('f_m').value,text:document.getElementById('f_t').value.trim(),
+    matlada:document.getElementById('f_b').checked});
+  save();sheetClose();render();toast('Tillagd');
+}
+function dayOrderAll(){
+  var keys=DAYS.map(function(d){return d[0]});
+  CYC.forEach(function(k){if(keys.indexOf(k)<0)keys.push(k)});
+  return keys;
+}
+/* var i rotationen en rätt redan ligger, t.ex. ["Ons v1","Fre v3"] */
+function placements(rid){
+  var out=[],seen={};
+  S.weeks.slice().sort(function(a,b){return a.n-b.n}).forEach(function(w){
+    dayOrderAll().forEach(function(k){
+      var list=S.temp[tkey(w.n,k)]||w.days[k]||[];
+      list.forEach(function(x){
+        if(x.recipeId!==rid)return;
+        var lab=labelOf(k).slice(0,3)+' v'+w.n;
+        if(!seen[lab]){seen[lab]=1;out.push(lab)}
+      });
+    });
+  });
+  return out;
+}
+function placeLabel(rid,max){
+  var p=placements(rid);
+  if(!p.length)return '';
+  if(max&&p.length>max)return p.slice(0,max).join(', ')+' +'+(p.length-max);
+  return p.join(', ');
+}
+function weekOpts(sel){return S.weeks.map(function(w){
+  return '<option value="'+w.n+'"'+(w.n===sel?' selected':'')+'>Vecka '+w.n+'</option>'}).join('')}
+function dayOpts(sel){return DAYS.map(function(d){
+  return '<option value="'+d[0]+'"'+(d[0]===sel?' selected':'')+'>'+d[1]+'</option>'}).join('')}
+function editDish(wn,day,i){
+  var d=dayDishes(wn,day)[i];if(!d)return;
+  sheetOpen('<h2>'+esc(dishName(d))+'</h2>'+
+    '<div class="tiny" style="margin:-6px 0 12px">Ligger på '+dayName(day)+' i vecka '+wn+'</div>'+
+    '<div class="field"><label>Vecka</label><select id="m_w">'+weekOpts(wn)+'</select></div>'+
+    '<div class="field"><label>Veckodag</label><select id="m_d">'+dayOpts(day)+'</select></div>'+
+    '<div class="field"><label>Måltid</label><select id="m_m">'+
+      '<option value="middag"'+(d.meal!=='lunch'?' selected':'')+'>Middag</option>'+
+      '<option value="lunch"'+(d.meal==='lunch'?' selected':'')+'>Lunch</option></select></div>'+
+    '<div class="field"><label>Portioner</label><input type="number" id="m_p" min="1" max="30" value="'+d.portions+'"></div>'+
+    '<div class="field"><label class="row" style="gap:9px"><input type="checkbox" id="m_b" style="width:auto"'+(d.matlada?' checked':'')+'> Extra för matlåda</label></div>'+
+    '<button class="btn wide" onclick="applyEdit('+wn+',\''+day+'\','+i+')">Spara</button>');
+}
+function applyEdit(wn,day,i){
+  var arr=dayDishes(wn,day),d=arr[i];if(!d)return;
+  var nw=parseInt(document.getElementById('m_w').value,10),nd=document.getElementById('m_d').value;
+  d.meal=document.getElementById('m_m').value;
+  d.portions=parseInt(document.getElementById('m_p').value,10)||4;
+  d.matlada=document.getElementById('m_b').checked;
+  if(nw!==wn||nd!==day){
+    arr.splice(i,1);
+    dayDishes(nw,nd).push(d);
+    save();sheetClose();render();toast('Flyttad till '+dayName(nd)+' vecka '+nw);return;
+  }
+  save();sheetClose();render();toast('Sparad');
+}
+function delDish(wn,day,i){dayDishes(wn,day).splice(i,1);save();render()}
+
+/* ---------------- recept ---------------- */
+function planRecipes(){
+  var f=window._rf||'middag',
+      list=S.recipes.filter(function(r){return r.type===f}).sort(function(a,b){return a.name.localeCompare(b.name,'sv')});
+  var h='<div class="chips" style="margin-bottom:12px">'+
+    '<button class="chip'+(f==='middag'?' on':'')+'" onclick="window._rf=\'middag\';render()">Middagar</button>'+
+    '<button class="chip'+(f==='lunch'?' on':'')+'" onclick="window._rf=\'lunch\';render()">Lunch &amp; mellanmål</button></div>'+
+    '<button class="btn wide" style="margin-bottom:14px" onclick="newRecipe()">+ Nytt recept</button>'+
+    '<div class="card rlist">';
+  if(!list.length)h+='<div class="empty">Inga recept här än</div>';
+  list.forEach(function(r){
+    h+='<button class="item" onclick="openRecipe(\''+r.id+'\')"><span class="grow"><span class="nm">'+esc(r.name)+'</span>'+
+       '<div class="tiny">'+(r.ing.length?r.ing.length+' ingredienser':'Ingen ingredienslista')+'</div>'+
+       (placements(r.id).length?'<div class="tiny" style="margin-top:3px"><span class="pill">'+
+         esc(placeLabel(r.id,4))+'</span></div>':'')+
+       '</span><span class="tiny">&rsaquo;</span></button>';
+  });
+  h+='</div>';
+  return h;
+}
+function unitOpts(sel){
+  return UNITS.map(function(u){
+    return '<option value="'+u+'"'+(u===(sel||'')?' selected':'')+'>'+(u===''?'—':u)+'</option>';
+  }).join('');
+}
+function ingRow(ing){
+  ing=ing||{q:null,u:'',n:''};
+  return '<div class="irow">'+
+    '<input type="number" class="iq" step="any" min="0" placeholder="Antal" value="'+(ing.q==null?'':ing.q)+'">'+
+    '<select class="iu">'+unitOpts(ing.u)+'</select>'+
+    '<input type="text" class="in" list="ingnames" placeholder="Ingrediens" value="'+esc(ing.n)+'">'+
+    '<button class="x" onclick="this.parentNode.remove()">&times;</button></div>';
+}
+function addIngRow(){
+  var d=document.createElement('div');d.innerHTML=ingRow();
+  document.getElementById('ings').appendChild(d.firstChild);
+}
+function openRecipe(id){
+  var r=rec(id);if(!r)return;
+  refreshNames();
+  var rows=r.ing.length?r.ing.map(ingRow).join(''):ingRow();
+  var pl=placements(id);
+  sheetOpen('<h2>'+esc(r.name)+'</h2>'+
+    '<div class="tiny" style="margin:-6px 0 14px">'+
+      (pl.length?'Ligger på '+esc(pl.join(', ')):'Ligger inte i någon vecka än')+'</div>'+
+    '<div class="field"><label>Namn</label><input type="text" id="e_n" value="'+esc(r.name)+'"></div>'+
+    '<div class="field"><label>Typ</label><select id="e_t">'+
+      '<option value="middag"'+(r.type==='middag'?' selected':'')+'>Middag</option>'+
+      '<option value="lunch"'+(r.type==='lunch'?' selected':'')+'>Lunch &amp; mellanmål</option></select></div>'+
+    '<div class="field"><label>Receptet räcker till (portioner)</label><input type="number" id="e_b" value="'+(r.bas||4)+'" min="1"></div>'+
+    '<div class="field"><label>Ingredienser</label>'+
+      '<div class="irow tiny" style="margin-bottom:4px"><span>Antal</span><span>Enhet</span><span>Ingrediens</span><span></span></div>'+
+      '<div id="ings">'+rows+'</div>'+
+      '<button class="btn quiet wide" style="margin-top:4px" onclick="addIngRow()">+ Ingrediens</button></div>'+
+    '<div class="row" style="gap:9px"><button class="btn grow" onclick="saveRecipe(\''+id+'\')">Spara</button>'+
+    '<button class="btn danger" onclick="delRecipe(\''+id+'\')">Ta bort</button></div>'+
+    '<div class="sec-title">Lägg i planeringen</div>'+
+    '<div class="row" style="gap:8px;margin-bottom:10px">'+
+      '<select id="p_w" style="flex:1">'+weekOpts(S.editWeek)+'</select>'+
+      '<select id="p_d" style="flex:1">'+dayOpts(DAYS[0][0])+'</select></div>'+
+    '<div class="row" style="gap:8px;margin-bottom:10px">'+
+      '<select id="p_m" style="flex:1"><option value="middag">Middag</option><option value="lunch">Lunch</option></select>'+
+      '<input type="number" id="p_p" value="4" min="1" max="30" style="flex:1" placeholder="Portioner"></div>'+
+    '<button class="btn quiet wide" onclick="placeRecipe(\''+id+'\')">Lägg till i vald dag</button>');
+}
+function placeRecipe(id){
+  var wn=parseInt(document.getElementById('p_w').value,10),
+      day=document.getElementById('p_d').value,
+      meal=document.getElementById('p_m').value,
+      port=parseInt(document.getElementById('p_p').value,10)||4,
+      cur=dayDishes(wn,day);
+  window._pl={id:id,wn:wn,day:day,meal:meal,port:port};
+  if(!cur.length){doPlace('add');return}
+  sheetOpen('<h2>'+dayName(day)+' vecka '+wn+' är upptagen</h2>'+
+    '<div class="tiny" style="margin:-6px 0 14px">Där ligger redan '+esc(cur.map(dishName).join(', '))+'.</div>'+
+    '<button class="btn wide" style="margin-bottom:9px" onclick="doPlace(\'perm\')">Ersätt permanent</button>'+
+    '<div class="tiny" style="margin:-4px 0 12px">Ändrar standardveckan för all framtid.</div>'+
+    '<button class="btn quiet wide" style="margin-bottom:9px" onclick="doPlace(\'once\')">Ersätt bara denna gång</button>'+
+    '<div class="tiny" style="margin:-4px 0 12px">Standardveckan är kvar och går att återställa.</div>'+
+    '<button class="btn quiet wide" style="margin-bottom:9px" onclick="doPlace(\'add\')">Lägg till som extra rätt</button>'+
+    '<button class="btn quiet wide" onclick="sheetClose()">Avbryt</button>');
+}
+function doPlace(mode){
+  var p=window._pl;if(!p)return;
+  var d={id:uid(),recipeId:p.id,portions:p.port,meal:p.meal,text:'',matlada:false};
+  if(mode==='once'){
+    var t=makeTemp(p.wn,p.day);t.length=0;t.push(d);
+  }else if(mode==='perm'){
+    delete S.temp[tkey(p.wn,p.day)];
+    var w=wk(p.wn);if(!w)return;w.days[p.day]=[d];
+  }else{
+    dayDishes(p.wn,p.day).push(d);
+  }
+  window._pl=null;save();sheetClose();render();
+  toast(mode==='once'?'Inlagd bara denna gång':'Inlagd på '+dayName(p.day)+' vecka '+p.wn);
+}
+function newRecipe(){
+  var id=uid();
+  S.recipes.push(R(id,'Ny rätt',window._rf||'middag',[]));
+  save();openRecipe(id);
+}
+function saveRecipe(id){
+  var r=rec(id);if(!r)return;
+  r.name=document.getElementById('e_n').value.trim()||'Namnlös';
+  r.type=document.getElementById('e_t').value;
+  r.bas=parseInt(document.getElementById('e_b').value,10)||4;
+  var out=[];
+  Array.prototype.forEach.call(document.getElementById('ings').querySelectorAll('.irow'),function(row){
+    var n=row.querySelector('.in').value.trim();if(!n)return;
+    var qv=row.querySelector('.iq').value.trim();
+    out.push(I(qv===''?null:parseFloat(qv.replace(',','.')),row.querySelector('.iu').value,n));
+  });
+  r.ing=out;save();sheetClose();render();toast('Sparad');
+}
+function delRecipe(id){
+  if(!confirm('Ta bort receptet? Det försvinner ur alla veckor.'))return;
+  S.recipes=S.recipes.filter(function(r){return r.id!==id});
+  S.weeks.forEach(function(w){DAYS.forEach(function(d){
+    w.days[d[0]]=w.days[d[0]].filter(function(x){return x.recipeId!==id})})});
+  save();sheetClose();render();toast('Borttagen');
+}
+function refreshNames(){
+  var seen={},out=[];
+  S.recipes.forEach(function(r){r.ing.forEach(function(i){
+    var k=i.n.toLowerCase();if(!seen[k]){seen[k]=1;out.push(i.n)}})});
+  SNABB.forEach(function(n){var k=n.toLowerCase();if(!seen[k]){seen[k]=1;out.push(n)}});
+  out.sort(function(a,b){return a.localeCompare(b,'sv')});
+  document.getElementById('ingnames').innerHTML=out.map(function(n){return '<option value="'+esc(n)+'">'}).join('');
+}
+
+/* ---------------- inköp: gemensam logik ---------------- */
+function shopFor(n){return S.shopOf[normName(n)]||null}
+function setShop(n,s){S.shopOf[normName(n)]=s}
+function ordArr(shop){return shop==='fram'?S.ordFram:S.ordWillys}
+function ordIdx(shop,name){var i=ordArr(shop).indexOf(normName(name));return i<0?1e6:i}
+function sortDisp(list,shop,storeOrder){
+  if(storeOrder)list.sort(function(a,b){return (ordIdx(shop,a.n)-ordIdx(shop,b.n))||bySv(a,b)});
+  else list.sort(bySv);
+  return list;
+}
+function materialize(shop,list){
+  ordArr(shop).length=0;
+  list.forEach(function(it){ordArr(shop).push(normName(it.n))});
+  save();
+}
+function setPos(shop,name,v){
+  var a=ordArr(shop),k=normName(name),i=a.indexOf(k),
+      to=Math.max(1,Math.min(a.length||1,parseInt(v,10)||1))-1;
+  if(i>-1)a.splice(i,1);
+  a.splice(to,0,k);
+  save();render();toast(name+' → plats '+(to+1));
+}
+function moveOrd(shop,name,dir){
+  var a=ordArr(shop),i=a.indexOf(normName(name)),j=i+dir;
+  if(i<0||j<0||j>=a.length)return;
+  var t=a[i];a[i]=a[j];a[j]=t;save();renderShop();
+}
+function groups(){
+  var map={},pending=[],fram=[],willys=[],other=[],skipped=[],k;
+  actWeeks().forEach(function(w,pos){
+    DAYS.forEach(function(d){
+      dayDishes(w.n,d[0]).forEach(function(dish){
+        var r=rec(dish.recipeId);if(!r)return;
+        var off=dayOffset(d[0],pos);
+        r.ing.forEach(function(ing){
+          var key=(ing.n+'|'+ing.u).toLowerCase();
+          if(!map[key])map[key]={key:key,n:ing.n,u:ing.u,q:null,src:[],off:off};
+          var v=scaled(ing,dish.portions,r.bas);
+          if(v!=null)map[key].q=(map[key].q||0)+v;
+          if(off<map[key].off)map[key].off=off;
+          if(map[key].src.indexOf(r.name)<0)map[key].src.push(r.name);
+        });
+      });
+    });
+  });
+  for(k in map){
+    var m=map[k],it={key:k,n:m.n,u:m.u,q:m.q,src:m.src.join(', '),auto:true,
+                     off:m.off,fresh:isFresh(m.n)},a=S.approved[k];
+    if(a==='fram')fram.push(it);
+    else if(a==='other')other.push(it);
+    else if(a==='willys')willys.push(it);
+    else if(a===false)skipped.push(it);
+    else{it.hint=shopFor(m.n);pending.push(it)}
+  }
+  S.extra.forEach(function(e){
+    var it={key:'f:'+e.id,n:e.name,u:'',q:null,src:'',manual:e.id};
+    if(e.shop==='willys')willys.push(it);else if(e.shop==='other')other.push(it);else fram.push(it);
+  });
+  pending.sort(bySv);skipped.sort(bySv);
+  return{pending:pending,fram:fram,willys:willys,other:other,skipped:skipped};
+}
+function splitCount(n){
+  var m=String(n).match(/^(.*\S)\s+(\d+)$/);
+  return m?{name:m[1],def:parseFloat(m[2])}:{name:String(n),def:null};
+}
+function normName(n){
+  var t=splitCount(n).name.toLowerCase().replace(/\s*-\s*(fram|willys)$/,'');
+  if(typeof S==='undefined'||!S||!S.alias)return t;
+  for(var i=0;i<6;i++){
+    var a=S.alias[t];
+    if(!a||a===t)break;
+    t=a;
+  }
+  return t;
+}
+function stepFor(u){
+  if(u==='g')return 50;if(u==='ml')return 50;if(u==='kg')return 0.5;
+  if(u==='dl')return 0.5;if(u==='l')return 0.5;return 1;
+}
+function baseQty(it){
+  if(it.q!=null)return it.q;
+  if(it.def!=null)return it.def;
+  return null;
+}
+function qtyOf(it){
+  var v=S.qty[it.key];
+  return v===undefined?baseQty(it):v;
+}
+function bumpQty(key,d){
+  var it=window._rows&&window._rows[key];if(!it)return;
+  var cur=qtyOf(it),base=cur==null?0:cur;
+  var v=Math.round((base+d)*100)/100;
+  if(v<0)v=0;
+  S.qty[key]=v;
+  if(v===baseQty(it))delete S.qty[key];
+  save();render();
+}
+function mergeByName(list){
+  var seen={},out=[];
+  list.forEach(function(it){
+    var k=normName(it.n),prev=seen[k];
+    if(!prev){seen[k]=it;out.push(it);return}
+    /* samma vara två gånger: behåll raden, slå ihop mängd och receptmärkning */
+    if(it.q!=null){prev.q=(prev.q||0)+it.q;prev.u=prev.u||it.u}
+    if(it.def!=null&&prev.def==null)prev.def=it.def;
+    if(it.off!=null&&(prev.off==null||it.off<prev.off))prev.off=it.off;
+    if(it.fresh)prev.fresh=true;
+    if(it.auto)prev.auto=true;
+    if(it.src)prev.src=prev.src?prev.src+', '+it.src:it.src;
+    if(it.manual&&!prev.manual)prev.manual=it.manual;
+  });
+  return out;
+}
+function willysRows(g){
+  return mergeByName(
+    S.grund.map(function(gd){var c=splitCount(gd.name);return{key:'g:'+gd.id,n:c.name,def:c.def,u:'',q:null,src:'',standing:true,sid:gd.id,shop:'willys'}})
+           .concat(g.willys));
+}
+function storeOf(n){return S.storeName[normName(n)]||'Övrigt'}
+function knownStores(){
+  var seen={},out=[],k;
+  S.otherList.forEach(function(o){if(o.store&&!seen[o.store]){seen[o.store]=1;out.push(o.store)}});
+  for(k in S.storeName){var v=S.storeName[k];if(v&&!seen[v]){seen[v]=1;out.push(v)}}
+  out.sort(function(a,b){return a.localeCompare(b,'sv')});
+  return out;
+}
+function otherRows(g){
+  return mergeByName(
+    S.otherList.map(function(o){var c=splitCount(o.name);return{key:'o:'+o.id,n:c.name,def:c.def,u:'',q:null,src:'',standing:true,sid:o.id,shop:'other'}})
+               .concat(g.other));
+}
+function otherBlock(g){
+  var list=splitLater(otherRows(g)).now,edit=S.editing,h='',by={},order=[];
+  h+='<div class="sec-title"><span>Annan butik &middot; beställ online</span></div>';
+  var vis=list.filter(function(it){window._rows=window._rows||{};window._rows[it.key]=it;return S.showDone||edit||!isOn(it)});
+  vis.forEach(function(it){
+    var b=storeOf(it.n);
+    if(!by[b]){by[b]=[];order.push(b)}
+    by[b].push(it);
+  });
+  order.sort(function(a,b){return a.localeCompare(b,'sv')});
+  if(!vis.length)h+='<div class="card"><ul class="slist"><li><span class="tiny">'+
+    (list.length?'Allt avbockat.':'Inget att beställa.')+'</span></li></ul></div>';
+  order.forEach(function(b){
+    by[b].sort(bySv);
+    h+='<div class="tiny" style="margin:11px 0 5px;font-weight:600;color:var(--lilac-deep)">'+esc(b)+'</div>'+
+       '<div class="card"><ul class="slist">';
+    by[b].forEach(function(it){h+=itemRow(it,'other',false)});
+    h+='</ul></div>';
+  });
+  h+='<div class="row" style="margin:10px 0 0;gap:8px">'+
+     '<input type="text" id="addO" placeholder="Lägg till vara" style="flex:1">'+
+     '<button class="btn" onclick="addExtra(\'addO\',\'other\')">Lägg till</button></div>';
+  return h;
+}
+function framRows(g){
+  return mergeByName(
+    S.framList.map(function(fd){var c=splitCount(fd.name);return{key:'a:'+fd.id,n:c.name,def:c.def,u:'',q:null,src:'',standing:true,sid:fd.id,shop:'fram'}})
+              .concat(g.fram));
+}
+function pendingBlock(g){
+  if(!g.pending.length)return '';
+  var h='<div class="sec-title"><span>Från veckans recept &middot; vilken butik?</span>'+
+    '<button onclick="approveAll()">Fördela alla</button></div>'+
+    '<div class="tiny" style="margin:-4px 0 8px">Välj butik, eller bocka bort det du redan har hemma.</div>'+
+    '<div class="card"><ul class="slist">';
+  g.pending.forEach(function(it){
+    h+='<li style="flex-direction:column;align-items:stretch;gap:8px">'+
+       '<div class="row" style="align-items:flex-start"><span class="grow"><b style="font-weight:600">'+esc(it.n)+'</b> '+
+       (it.q!=null?'<span class="qty">'+fmtQ(it.q)+' '+esc(it.u)+'</span>':'')+
+       (autoLater(it)?'<span class="pill late">färskt &middot; '+offsetLabel(it.off)+'</span>':'')+
+       '<div class="src">'+esc(it.src)+(autoLater(it)?' &middot; föreslås som komplettering':'')+'</div></span>'+
+       '<button class="x" onclick="approve(\''+q1(it.key)+'\',false)">&times;</button></div>'+
+       '<div class="row" style="gap:6px">'+
+       '<button class="mv grow'+(it.hint==='fram'?' hint':'')+'" onclick="approve(\''+q1(it.key)+'\',\'fram\',\''+q1(it.n)+'\')">Fram</button>'+
+       '<button class="mv grow'+(it.hint==='willys'?' hint':'')+'" onclick="approve(\''+q1(it.key)+'\',\'willys\',\''+q1(it.n)+'\')">Willys</button>'+
+       '<button class="mv grow'+(it.hint==='other'?' hint':'')+'" onclick="storePicker(\''+q1(it.key)+'\',\''+q1(it.n)+'\')">Annan</button></div></li>';
+  });
+  return h+'</ul></div>';
+}
+function itemRow(it,shop,storeOrder){
+  window._rows=window._rows||{};window._rows[it.key]=it;
+  var on=isOn(it),edit=!!S.editing;
+  var q=qtyOf(it),st=stepFor(it.u);
+  var qbox='<div class="qbox"><button onclick="bumpQty(\''+q1(it.key)+'\',-'+st+')">&minus;</button>'+
+    '<span>'+(q==null||q===0?'&ndash;':fmtQ(q)+(it.u?' '+esc(it.u):''))+'</span>'+
+    '<button onclick="bumpQty(\''+q1(it.key)+'\','+st+')">+</button></div>';
+  return '<li class="'+(on?'done':'')+'"><button class="box'+(on?' on':'')+'" onclick="tick(\''+q1(it.key)+'\')">'+
+    '<svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg></button>'+
+    '<span class="grow txt"><b style="font-weight:600">'+esc(it.n)+'</b>'+
+    (it.auto?'<span class="pill r">recept</span>':'')+
+    (it.auto&&S.qty[it.key]!==undefined?'<span class="pill q">ändrad</span>':'')+
+    (it.src?'<div class="src">'+esc(it.src)+'</div>':'')+'</span>'+
+    (edit
+      ? '<button class="mv'+(isFresh(it.n)?' hint':'')+'" onclick="itemSheet(\''+q1(it.key)+'\',\''+shop+'\')">ändra</button>'+
+        (storeOrder&&shop!=='other'
+          ? '<input class="pos" type="number" min="1" value="'+(ordIdx(shop,it.n)+1)+'" '+
+            'onchange="setPos(\''+shop+'\',\''+q1(it.n)+'\',this.value)" '+
+            'onclick="this.select()">'+
+            '<div class="ord"><button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',-1)">&#9650;</button>'+
+            '<button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',1)">&#9660;</button></div>'
+          : '')+
+        '<button class="x" onclick="removeRow(\''+q1(it.key)+'\',\''+shop+'\')">&times;</button>'
+      : qbox+(it.auto&&isFresh(it.n)?'<button class="mv" onclick="setLater(\''+q1(it.key)+'\',true)" title="Flytta till komplettering">&#8987;</button>':''))+
+    (it.manual&&!edit?'<button class="x" onclick="delExtra(\''+it.manual+'\')">&times;</button>':'')+'</li>';
+}
+function splitLater(list){
+  var now=[],late=[];
+  list.forEach(function(it){(it.auto&&isLater(it)?late:now).push(it)});
+  return{now:now,late:late};
+}
+function listBlock(title,shop,list,storeOrder,inputId,placeholder){
+  var edit=storeOrder&&S.editing,h='';
+  h+='<div class="sec-title"><span>'+title+'</span></div>';
+  var vis=list.filter(function(it){window._rows=window._rows||{};window._rows[it.key]=it;return S.showDone||edit||!isOn(it)});
+  h+='<div class="card"><ul class="slist">';
+  if(!vis.length)h+='<li><span class="tiny">'+(list.length?'Allt avbockat.':'Inget att handla här.')+'</span></li>';
+  vis.forEach(function(it){h+=itemRow(it,shop,storeOrder)});
+  h+='</ul></div>';
+  if(inputId)h+='<div class="row" style="margin:9px 0 0;gap:8px">'+
+    '<input type="text" id="'+inputId+'" placeholder="'+placeholder+'" style="flex:1">'+
+    '<button class="btn" onclick="addExtra(\''+inputId+'\',\''+shop+'\')">Lägg till</button></div>';
+  return h;
+}
+function laterCount(g){
+  return splitLater(framRows(g)).late.length+splitLater(willysRows(g)).late.length+splitLater(otherRows(g)).late.length;
+}
+function laterBanner(g){
+  var n=laterCount(g);
+  if(!n)return '';
+  return '<div class="card" style="padding:12px 14px;margin-bottom:14px"><div class="row">'+
+    '<span class="grow tiny"><b>'+n+' varor</b> ligger i kompletteringslistan – färskvaror som behövs senare.</span>'+
+    '<button class="mv" onclick="document.getElementById(\'later\').scrollIntoView({block:\'start\'})">Visa</button></div></div>';
+}
+function laterBlock(g,storeOrder){
+  var all=splitLater(framRows(g)).late
+      .map(function(it){it._s='Fram';return it})
+      .concat(splitLater(willysRows(g)).late.map(function(it){it._s='Willys';return it}))
+      .concat(splitLater(otherRows(g)).late.map(function(it){it._s=storeOf(it.n);return it}));
+  if(!all.length)return '';
+  all.sort(function(a,b){return (a.off-b.off)||bySv(a,b)});
+  var h='<div id="later"></div><div class="sec-title"><span>Komplettering &middot; handlas senare</span></div>'+
+    '<div class="tiny" style="margin:-4px 0 8px">Färskvaror som inte behövs förrän dag '+(LATER_FROM+1)+' eller senare.</div>'+
+    '<div class="card"><ul class="slist">';
+  all.forEach(function(it){
+    window._rows=window._rows||{};window._rows[it.key]=it;
+    var on=isOn(it);
+    h+='<li class="'+(on?'done':'')+'"><button class="box'+(on?' on':'')+'" onclick="tick(\''+q1(it.key)+'\')">'+
+       '<svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg></button>'+
+       '<span class="grow txt"><b style="font-weight:600">'+esc(it.n)+'</b> '+
+       (it.q!=null?'<span class="qty">'+fmtQ(it.q)+' '+esc(it.u)+'</span>':'')+
+       '<span class="pill late">'+offsetLabel(it.off)+'</span>'+
+       '<div class="src">'+esc(it._s)+(it.src?' &middot; '+esc(it.src):'')+'</div></span>'+
+       '<button class="mv" onclick="setLater(\''+q1(it.key)+'\',false)">handla nu</button></li>';
+  });
+  return h+'</ul></div>';
+}
+function poolBlock(){
+  var filt=(window._sf||'').toLowerCase();
+  var h='<div class="sec-title"><span>Vanliga varor</span></div>'+
+    '<input type="text" id="sfilt" placeholder="Sök vara" value="'+esc(window._sf||'')+'" style="margin-bottom:10px" '+
+    'oninput="window._sf=this.value;render();var e=document.getElementById(\'sfilt\');e.focus();e.setSelectionRange(e.value.length,e.value.length)">'+
+    '<div class="card"><ul class="slist">';
+  var pool=SNABB.filter(function(s){return !filt||s.toLowerCase().indexOf(filt)>-1});
+  if(!pool.length)h+='<li><span class="tiny">Ingen träff.</span></li>';
+  pool.slice(0,filt?60:12).forEach(function(s){
+    var hint=shopFor(s);
+    h+='<li><span class="grow">'+esc(s)+'</span>'+
+       '<button class="mv'+(hint==='fram'?' hint':'')+'" onclick="quickAdd(\''+q1(s)+'\',\'fram\')">Fram</button>'+
+       '<button class="mv'+(hint==='willys'?' hint':'')+'" onclick="quickAdd(\''+q1(s)+'\',\'willys\')">Willys</button>'+
+       '<button class="mv'+(hint==='other'?' hint':'')+'" onclick="quickAdd(\''+q1(s)+'\',\'other\')">Annan</button></li>';
+  });
+  if(!filt&&pool.length>12)h+='<li><span class="tiny">'+(pool.length-12)+' till &ndash; sök ovan.</span></li>';
+  return h+'</ul></div>';
+}
+
+/* planera → inköpslista (alfabetiskt) */
+function planShop(){
+  var g=groups(),h='';
+  h+=backupBanner();
+  h+='<div class="tiny" style="margin-bottom:12px">'+(S.editing
+      ? 'Redigeringsläge: tryck <b>ändra</b> för namn, butik, färskmärkning eller sammanslagning. Ordningen ändras under Handla.'
+      : 'Bokstavsordning. Utgår från '+actLabel()+'.')+'</div>';
+  h+=pendingBlock(g);
+  h+=laterBanner(g);
+  h+=listBlock('Fram &middot; ekologiska butiken','fram',sortDisp(splitLater(framRows(g)).now,'fram',false),false,'addF','Lägg till på Fram');
+  if(g.skipped.length)h+='<div class="tiny" style="margin-top:7px"><button class="mv" onclick="unskip()">'+
+     g.skipped.length+' markerade "finns hemma" &ndash; ta tillbaka</button></div>';
+  h+=listBlock('Willys &middot; stora butiken','willys',sortDisp(splitLater(willysRows(g)).now,'willys',false),false,'addW','Lägg till på Willys');
+  h+=otherBlock(g);
+  h+=laterBlock(g,false);
+  h+=poolBlock();
+  h+='<div class="row" style="gap:9px;margin-top:16px">'+
+     '<button class="btn quiet grow" onclick="S.showDone=!S.showDone;save();render()">'+(S.showDone?'Dölj avbockat':'Visa hela listan')+'</button>'+
+     '<button class="btn quiet grow" onclick="clearTicks()">Nollställ</button></div>';
+  return h;
+}
+
+/* handla (butiksordning) */
+function renderShop(){
+  var g=groups(),h='';
+  if(S.editing)h+='<div class="tiny" style="margin-bottom:12px">Redigeringsläge: skriv ett nummer för att flytta varan dit, '+
+     '1 är överst. Pilarna flyttar ett steg. <b>ändra</b> ger namn, butik, färskmärkning och sammanslagning.</div>';
+  h+=backupBanner();
+  h+=laterBanner(g);
+  if(g.pending.length)h+='<div class="card" style="padding:12px 14px;margin-bottom:14px"><div class="row">'+
+    '<span class="grow tiny">'+g.pending.length+' varor är inte fördelade mellan butikerna.</span>'+
+    '<button class="mv" onclick="go(\'plan\',\'shop\')">Fördela</button></div></div>';
+  LIST_fram=sortDisp(splitLater(framRows(g)).now,'fram',true);
+  LIST_willys=sortDisp(splitLater(willysRows(g)).now,'willys',true);
+  h+=listBlock('Fram &middot; ekologiska butiken','fram',LIST_fram,true,'addF2','Lägg till på Fram');
+  h+=listBlock('Willys &middot; stora butiken','willys',LIST_willys,true,'addW2','Lägg till på Willys');
+  h+=otherBlock(g);
+  h+=laterBlock(g,true);
+  h+='<div class="row" style="gap:9px;margin-top:16px">'+
+     '<button class="btn quiet grow" onclick="S.showDone=!S.showDone;save();render()">'+(S.showDone?'Dölj avbockat':'Visa hela listan')+'</button>'+
+     '<button class="btn quiet grow" onclick="checkAll()">Bocka av allt</button></div>'+
+     '<button class="btn quiet wide" style="margin-top:9px" onclick="clearTicks()">Nollställ till standard</button>';
+  document.getElementById('v-shop').innerHTML=h;
+}
+function toggleEditAll(){
+  if(S.editing){S.editing=false;save();render();toast('Klar');return}
+  if(current==='shop'){
+    var g=groups();
+    materialize('fram',sortDisp(splitLater(framRows(g)).now,'fram',true));
+    materialize('willys',sortDisp(splitLater(willysRows(g)).now,'willys',true));
+  }
+  S.editing=true;save();render();
+}
+function syncFab(){
+  var f=document.getElementById('fab'),
+      show=(current==='shop')||(current==='plan'&&sub==='shop');
+  f.className='fab'+(show?' on':'')+(S.editing?' active':'');
+  f.textContent=S.editing?'Klar':'Redigera';
+}
+function defOn(it){return !it.auto}
+function isOn(it){var v=S.checked[it.key];return v===undefined?defOn(it):v}
+function isOnKey(k){
+  var it=window._rows&&window._rows[k];
+  var v=S.checked[k];
+  return v===undefined?(it?defOn(it):false):v;
+}
+function tick(k){S.checked[k]=!isOnKey(k);save();render()}
+function checkAll(){
+  var g=groups();
+  framRows(g).concat(willysRows(g)).concat(otherRows(g)).forEach(function(it){S.checked[it.key]=true});
+  save();render();toast('Allt avbockat');
+}
+function setLater(k,v){S.later[k]=v;save();render();toast(v?'Flyttad till komplettering':'Flyttad till veckans inköp')}
+function approve(k,shop,name){S.approved[k]=shop;if(shop&&name)setShop(name,shop);save();render()}
+function approveAll(){groups().pending.forEach(function(it){S.approved[it.key]=it.hint||'fram'});
+  save();render();toast('Fördelade – kolla att butikerna stämmer')}
+function unskip(){groups().skipped.forEach(function(it){delete S.approved[it.key]});save();render();toast('Tillbaka till fördelning')}
+function clearTicks(){S.checked={};S.qty={};save();render();toast('Tillbaka till standard')}
+function standingList(shop){
+  return shop==='fram'?S.framList:shop==='willys'?S.grund:S.otherList;
+}
+function itemSheet(key,shop){
+  var it=(window._rows||{})[key];if(!it)return;
+  var others=standingList(shop).filter(function(x){return x.id!==it.sid})
+    .map(function(x){return x.name}).sort(function(a,b){return a.localeCompare(b,'sv')});
+  var canRename=!!(it.standing||it.manual);
+  var h='<h2>'+esc(it.n)+'</h2>';
+  h+='<div class="field"><label>Namn</label>'+
+     (canRename
+       ? '<div class="row" style="gap:8px"><input type="text" id="rnName" value="'+esc(it.n)+'" style="flex:1">'+
+         '<button class="btn" onclick="renameItem(\''+q1(key)+'\',\''+shop+'\')">Spara</button></div>'
+       : '<div class="tiny">Namnet kommer från receptet och ändras under Planera &rarr; Recept.</div>')+'</div>';
+  h+='<div class="field"><label>Färskvara</label>'+
+     '<button class="btn '+(isFresh(it.n)?'':'quiet ')+'wide" onclick="toggleFresh(\''+q1(it.n)+'\');sheetClose()">'+
+     (isFresh(it.n)?'Ja – kan hamna i kompletteringen':'Nej – följer alltid med')+'</button></div>';
+  h+='<div class="field"><label>Butik</label>'+
+     '<button class="btn quiet wide" onclick="storePicker(\''+q1(key)+'\',\''+q1(it.n)+'\')">'+
+     (shop==='fram'?'Fram':shop==='willys'?'Willys':esc(storeOf(it.n)))+' &middot; byt</button></div>';
+  h+='<div class="field"><label>Slå ihop med en annan vara</label>'+
+     '<select id="mgTo"><option value="">Välj vara…</option>'+
+     others.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>'}).join('')+'</select>'+
+     '<button class="btn quiet wide" style="margin-top:8px" onclick="mergeItem(\''+q1(key)+'\',\''+shop+'\')">Slå ihop</button>'+
+     '<div class="tiny" style="margin-top:6px">Den här varan försvinner och allt som heter så, även i recepten, '+
+     'räknas hädanefter som den du väljer.</div></div>';
+  h+='<button class="btn danger wide" onclick="removeRow(\''+q1(key)+'\',\''+shop+'\');sheetClose()">Ta bort varan</button>'+
+     '<div class="tiny" style="margin-top:7px">'+
+     (it.standing||it.manual
+       ? 'Försvinner ur listan för gott.'
+       : 'Kommer från ett recept, så den försvinner bara ur den här inköpsomgången. Ta bort den ur receptet för att slippa den för gott.')+
+     '</div>';
+  sheetOpen(h);
+}
+function carryKeys(from,to){
+  if(from===to)return;
+  ['shopOf','freshOf','storeName'].forEach(function(m){
+    if(S[m][from]!==undefined&&S[m][to]===undefined)S[m][to]=S[m][from];
+    delete S[m][from];
+  });
+}
+function renameItem(key,shop){
+  var it=(window._rows||{})[key],v=document.getElementById('rnName').value.trim();
+  if(!it||!v)return;
+  var before=normName(it.n);
+  if(it.standing){
+    standingList(shop).forEach(function(x){if(x.id===it.sid)x.name=v});
+  }else if(it.manual){
+    S.extra.forEach(function(e){if(e.id===it.manual)e.name=v});
+  }
+  var after=normName(v);
+  if(before!==after){
+    carryKeys(before,after);
+    ['ordFram','ordWillys'].forEach(function(o){
+      var i=S[o].indexOf(before);if(i>-1)S[o][i]=after;
+    });
+  }
+  save();sheetClose();render();toast('Omdöpt till '+v);
+}
+function mergeItem(key,shop){
+  var it=(window._rows||{})[key],target=document.getElementById('mgTo').value;
+  if(!it||!target)return;
+  var from=normName(it.n),to=normName(target);
+  if(from===to){sheetClose();return}
+  S.alias[from]=to;
+  if(it.standing)standingList(shop).forEach(function(x,i,a){if(x.id===it.sid)a.splice(i,1)});
+  else if(it.manual)S.extra=S.extra.filter(function(e){return e.id!==it.manual});
+  ['ordFram','ordWillys'].forEach(function(o){
+    S[o]=S[o].filter(function(x){return x!==from});
+  });
+  carryKeys(from,to);
+  delete S.checked[key];delete S.qty[key];
+  save();sheetClose();render();toast(it.n+' slogs ihop med '+target);
+}
+function storePicker(key,name){
+  var h='<h2>'+esc(name)+'</h2><div class="tiny" style="margin:-6px 0 14px">Var handlas den?</div>'+
+    '<button class="btn quiet wide" style="margin-bottom:8px" onclick="moveTo(\''+q1(key)+'\',\''+q1(name)+'\',\'fram\')">Fram</button>'+
+    '<button class="btn quiet wide" onclick="moveTo(\''+q1(key)+'\',\''+q1(name)+'\',\'willys\')">Willys</button>'+
+    '<div class="sec-title">Annan butik eller online</div>';
+  knownStores().forEach(function(b){
+    h+='<button class="btn quiet wide" style="margin-bottom:8px" onclick="moveTo(\''+q1(key)+'\',\''+q1(name)+'\',\'other\',\''+q1(b)+'\')">'+esc(b)+'</button>';
+  });
+  h+='<div class="row" style="gap:8px;margin-top:4px">'+
+     '<input type="text" id="newStore" placeholder="Ny butik" style="flex:1">'+
+     '<button class="btn" onclick="moveTo(\''+q1(key)+'\',\''+q1(name)+'\',\'other\',document.getElementById(\'newStore\').value.trim())">Spara</button></div>';
+  sheetOpen(h);
+}
+function moveTo(key,name,shop,label){
+  var pre=key.slice(0,2);
+  if(pre==='g:'||pre==='a:'||pre==='o:'){
+    var sid=key.slice(2),nm='';
+    var pull=function(arr){return arr.filter(function(x){if(x.id===sid){nm=x.name;return false}return true})};
+    S.grund=pull(S.grund);S.framList=pull(S.framList);S.otherList=pull(S.otherList);
+    nm=nm||name;
+    if(shop==='fram')S.framList.push({id:uid(),name:nm});
+    else if(shop==='willys')S.grund.push({id:uid(),name:nm});
+    else S.otherList.push({id:uid(),name:nm,store:label||storeOf(nm)});
+  }else if(pre==='f:'){
+    var id=key.slice(2);
+    S.extra.forEach(function(e){if(e.id===id)e.shop=shop});
+  }else S.approved[key]=shop;
+  setShop(name,shop);
+  if(shop==='other')S.storeName[normName(name)]=label||storeOf(name);
+  save();sheetClose();render();
+  toast(name+' \u2192 '+(shop==='fram'?'Fram':shop==='willys'?'Willys':(label||storeOf(name))));
+}
+function addExtra(inputId,shop){
+  var e=document.getElementById(inputId),v=e.value.trim();if(!v)return;
+  S.extra.push({id:uid(),name:v,shop:shop});setShop(v,shop);e.value='';save();render();
+}
+function quickAdd(n,shop){S.extra.push({id:uid(),name:n,shop:shop});setShop(n,shop);save();render();
+  toast(n+' → '+(shop==='fram'?'Fram':'Willys'))}
+function delExtra(id){S.extra=S.extra.filter(function(e){return e.id!==id});delete S.checked['f:'+id];save();render()}
+function removeRow(key,shop){
+  var it=(window._rows||{})[key];if(!it)return;
+  if(it.standing)delStanding(it.shop||shop,it.sid);
+  else if(it.manual)delExtra(it.manual);
+  else{S.approved[key]=false;delete S.checked[key];delete S.qty[key];save();render();
+    toast(it.n+' borttagen ur listan');}
+}
+function delStanding(shop,id){
+  if(shop==='fram'){S.framList=S.framList.filter(function(x){return x.id!==id});delete S.checked['a:'+id]}
+  else if(shop==='other'){S.otherList=S.otherList.filter(function(x){return x.id!==id});delete S.checked['o:'+id]}
+  else{S.grund=S.grund.filter(function(x){return x.id!==id});delete S.checked['g:'+id]}
+  save();render();
+}
+
+/* ---------------- LAGA ---------------- */
+function renderCook(){
+  var days=cookDays(),day=S.cookDay||'wed',dishes=days[day]||[],h='';
+  if(S.activeWeeks.length>1){
+    h+='<div class="chips" style="margin-bottom:11px">';
+    S.activeWeeks.forEach(function(n){
+      h+='<button class="chip'+(n===cookWeekNo()?' on':'')+'" onclick="setCookWeek('+n+')">Vecka '+n+'</button>';
+    });
+    h+='</div>';
+  }
+  h+='<div class="daysel">';
+  DAYS.forEach(function(d){
+    var n=(days[d[0]]||[]).length;
+    h+='<button class="'+(d[0]===day?'on':'')+'" onclick="setDay(\''+d[0]+'\')">'+d[1].slice(0,3)+(n>1?' ('+n+')':'')+'</button>';
+  });
+  h+='</div>';
+  if(!dishes.length){
+    document.getElementById('v-cook').innerHTML=h+'<div class="empty">Inget planerat den här dagen i vecka '+cookWeekNo()+'.</div>';
+    return;
+  }
+  var t=Math.min(S.cookTab||0,dishes.length-1);
+  if(dishes.length>1){
+    h+='<div class="chips scroll" style="margin-bottom:12px">';
+    dishes.forEach(function(d,i){h+='<button class="chip'+(i===t?' on':'')+'" onclick="setTab('+i+')">'+esc(dishName(d))+'</button>'});
+    h+='</div>';
+  }
+  var dish=dishes[t],r=rec(dish.recipeId);
+  h+='<div class="card" style="padding:14px;margin-bottom:12px">'+
+     '<h2 style="font-size:18px;margin-bottom:10px">'+esc(dishName(dish))+'</h2>'+
+     '<div class="row"><div class="grow tiny">Portioner'+(dish.matlada?' &middot; matlåda':'')+'</div>'+
+     '<div class="stepper"><button onclick="port('+t+',-1)">&minus;</button><span>'+dish.portions+'</span>'+
+     '<button onclick="port('+t+',1)">+</button></div></div></div>';
+  if(!r||!r.ing.length)h+='<div class="empty">Inga ingredienser sparade för den här rätten.</div>';
+  else{
+    h+='<div class="card"><ul class="ing">';
+    r.ing.forEach(function(ing){
+      var v=scaled(ing,dish.portions,r.bas);
+      h+='<li><span class="qty" style="min-width:64px">'+(v!=null?fmtQ(v)+' '+esc(ing.u):'')+'</span><span class="grow">'+esc(ing.n)+'</span></li>';
+    });
+    h+='</ul></div>';
+  }
+  document.getElementById('v-cook').innerHTML=h;
+}
+function setDay(d){S.cookDay=d;S.cookTab=0;save();render()}
+function setCookWeek(n){S.cookWeek=n;S.cookTab=0;save();render()}
+function setTab(i){S.cookTab=i;save();render()}
+function port(i,d){
+  var dish=dayDishes(cookWeekNo(),S.cookDay)[i];
+  dish.portions=Math.max(1,dish.portions+d);save();render();
+}
+
+/* ---------------- inställningar ---------------- */
+function renderMore(){
+  document.getElementById('v-more').innerHTML=
+   '<div class="card" style="padding:15px;margin-bottom:14px">'+
+   '<div class="row"><span class="grow">Recept</span><b>'+S.recipes.length+'</b></div>'+
+   '<div class="row" style="margin-top:7px"><span class="grow">Veckor i rotationen</span><b>'+S.weeks.length+'</b></div>'+
+   '<div class="row" style="margin-top:7px"><span class="grow">Handlar för</span><b>'+S.activeWeeks.join(' + ')+'</b></div>'+
+   '<div class="row" style="margin-top:7px"><span class="grow">Fram-listan</span><b>'+S.framList.length+'</b></div>'+
+   '<div class="row" style="margin-top:7px"><span class="grow">Willys grundlista</span><b>'+S.grund.length+'</b></div>'+
+   '<div class="row" style="margin-top:7px"><span class="grow">Annan butik</span><b>'+S.otherList.length+' i '+knownStores().length+'</b></div></div>'+
+   '<div class="sec-title">Planeringsperiod</div>'+
+   '<div class="card" style="padding:14px"><div class="row" style="gap:8px">'+
+   '<div class="grow"><div class="tiny" style="margin-bottom:5px">Börjar</div>'+
+   '<select onchange="setPeriod(this.value,null)">'+ALLDAYS.map(function(d){
+     return '<option value="'+d[0]+'"'+(d[0]===S.startDay?' selected':'')+'>'+d[1]+'</option>'}).join('')+'</select></div>'+
+   '<div class="grow"><div class="tiny" style="margin-bottom:5px">Slutar</div>'+
+   '<select onchange="setPeriod(null,this.value)">'+ALLDAYS.map(function(d){
+     return '<option value="'+d[0]+'"'+(d[0]===S.endDay?' selected':'')+'>'+d[1]+'</option>'}).join('')+'</select></div></div>'+
+   '<div class="tiny" style="margin-top:9px">'+DAYS.length+' dagar: '+DAYS[0][1]+' till '+DAYS[DAYS.length-1][1]+'. '+
+   'Dagar utanför perioden döljs, men det som ligger på dem raderas inte.</div></div>'+
+   (inFrame()?'<div class="card" style="padding:14px;margin-bottom:16px;border-color:var(--blush)">'+
+     '<b style="font-size:14.5px">Data sparas inte säkert här</b>'+
+     '<div class="tiny" style="margin-top:6px">Appen körs i en sandlåda som töms när sidan laddas om. '+
+     'Kopiera texten nedan till Anteckningar efter varje gång du ändrat något, '+
+     'och lägg upp appen på en egen adress så fort du kan.</div></div>':'')+
+   '<div class="sec-title">Säkerhetskopia &middot; kopiera och klistra</div>'+
+   '<textarea id="bkText" readonly style="min-height:92px;font-size:11px;font-family:ui-monospace,Menlo,monospace">'+
+     esc(JSON.stringify(S))+'</textarea>'+
+   '<button class="btn wide" style="margin-top:9px" onclick="copyBackup()">Kopiera säkerhetskopian</button>'+
+   '<div class="tiny" style="margin-top:7px">Klistra in i Anteckningar. Texten innehåller allt: veckor, recept, '+
+   'butikslistor, färskmärkning, ordning, bockar och antal.</div>'+
+   '<div class="sec-title">Återställ från kopierad text</div>'+
+   '<textarea id="rsText" placeholder="Klistra in säkerhetskopian här" style="min-height:70px;font-size:11px"></textarea>'+
+   '<button class="btn quiet wide" style="margin-top:9px" onclick="restoreBackup()">Återställ</button>'+
+   '<div class="sec-title">Säkerhetskopia till fil</div>'+
+   '<button class="btn quiet wide" style="margin-bottom:9px" onclick="expData()">Exportera till fil</button>'+
+   '<button class="btn quiet wide" onclick="document.getElementById(\'imp\').click()">Importera från fil</button>'+
+   '<input type="file" id="imp" accept=".json" style="display:none" onchange="impData(this)">'+
+   '<div class="tiny" style="margin-top:8px">Data sparas bara på den här telefonen.</div>'+
+   '<div class="sec-title">Rensa</div><button class="btn danger wide" onclick="wipe()">Rensa all data</button>';
+}
+function setPeriod(st,en){
+  if(st)S.startDay=st;
+  if(en)S.endDay=en;
+  rebuildDays();
+  if(!DAYS.filter(function(d){return d[0]===S.cookDay}).length)S.cookDay=DAYS[0][0];
+  save();render();toast('Perioden är '+DAYS[0][1]+'–'+DAYS[DAYS.length-1][1]);
+}
+function daysSinceBackup(){
+  if(!S.lastBackup)return null;
+  return Math.floor((Date.now()-S.lastBackup)/86400000);
+}
+function backupBanner(){
+  var d=daysSinceBackup();
+  if(d!==null&&d<3)return '';
+  return '<div class="card" style="padding:12px 14px;margin-bottom:14px;border-color:var(--butter)"><div class="row">'+
+    '<span class="grow tiny">'+(d===null
+      ? 'Du har ingen säkerhetskopia. Allt du lagt in finns bara i den här telefonen.'
+      : 'Senaste säkerhetskopian är '+d+' dagar gammal.')+'</span>'+
+    '<button class="mv" onclick="go(\'more\')">Kopiera</button></div></div>';
+}
+function inFrame(){try{return window.self!==window.top}catch(e){return true}}
+function copyBackup(){
+  var t=document.getElementById('bkText');
+  t.removeAttribute('readonly');
+  t.focus();t.setSelectionRange(0,t.value.length);
+  var ok=false;
+  try{ok=document.execCommand('copy')}catch(e){}
+  t.setAttribute('readonly','readonly');
+  if(!ok&&navigator.clipboard){
+    navigator.clipboard.writeText(t.value).then(function(){S.lastBackup=Date.now();save();toast('Kopierad')},
+      function(){toast('Markera texten och kopiera för hand')});
+    return;
+  }
+  if(ok){S.lastBackup=Date.now();save()}
+  toast(ok?'Kopierad – klistra in i Anteckningar':'Markera texten och kopiera för hand');
+}
+function restoreBackup(){
+  var v=document.getElementById('rsText').value.trim();
+  if(!v)return;
+  try{
+    var d=JSON.parse(v);
+    if(!d.weeks&&!d.plan)throw 0;
+    load2(d);S=d;save();rebuildDays();go('plan','week');toast('Återställd');
+  }catch(e){alert('Texten gick inte att läsa. Kontrollera att hela säkerhetskopian kom med.')}
+}
+function expData(){
+  var b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='matveckan-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  S.lastBackup=Date.now();save();
+}
+function impData(inp){
+  var f=inp.files[0];if(!f)return;var fr=new FileReader();
+  fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d.weeks&&!d.plan)throw 0;S=d;load2(d);save();go('plan','week');toast('Importerad')}
+   catch(e){alert('Filen gick inte att läsa. Välj en fil som exporterats härifrån.')}};
+  fr.readAsText(f);
+}
+function load2(d){
+  if(!d.weeks&&d.std)d.weeks=d.std;
+  if(!d.weeks)d.weeks=SEED_STD();
+  if(!d.activeWeeks)d.activeWeeks=d.activeWeek?[d.activeWeek]:[1];
+  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};
+  if(!d.editWeek)d.editWeek=d.activeWeeks[0]||1;
+  if(!d.extra)d.extra=[];if(!d.checked)d.checked={};if(!d.approved)d.approved={};
+  if(!d.shopOf)d.shopOf=seedShops();
+  if(!d.ordFram)d.ordFram=SEED_FRAM.map(normName);
+  if(!d.ordWillys)d.ordWillys=SEED_GRUND.map(normName);
+  if(!d.grund)d.grund=SEED_GRUND.map(function(n){return{id:uid(),name:n}});
+  if(!d.framList)d.framList=SEED_FRAM.map(function(n){return{id:uid(),name:n}});
+  if(!d.otherList)d.otherList=SEED_OTHER.map(function(o){return{id:uid(),name:o.n,store:o.b}});
+  if(!d.storeName)d.storeName=seedStoreNames();
+}
+function wipe(){if(!confirm('Rensa allt och börja om från Påminnelse-listan?'))return;
+  store.del(KEY);S=fresh();save();go('plan','week');toast('Allt rensat')}
+
+/* ---------------- ui ---------------- */
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove('on')},1600)}
+function sheetOpen(h){document.getElementById('sheet').innerHTML='<div class="grab"></div>'+h;
+  document.getElementById('sheet').classList.add('on');document.getElementById('scrim').classList.add('on')}
+function sheetClose(){document.getElementById('sheet').classList.remove('on');document.getElementById('scrim').classList.remove('on')}
+document.getElementById('scrim').onclick=sheetClose;
+document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){go(b.dataset.v)}});
+load();
+applyNewOrder();
+rebuildDays();go('plan','week');
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  navigator.serviceWorker.getRegistrations().then(function(rs){
+    return Promise.all(rs.map(function(r){return r.unregister()}));
+  }).then(function(){
+    return caches.keys().then(function(ks){
+      return Promise.all(ks.map(function(k){return caches.delete(k)}));
+    });
+  }).then(function(){
+    return navigator.serviceWorker.register('sw.js');
+  }).catch(function(){});
+}
+
+</script>
+</body>
+</html>
