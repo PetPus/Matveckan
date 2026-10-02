@@ -188,8 +188,8 @@ var mem={};
 var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
-var KEY='matveckan.v8';
-var APP_VERSION='18';
+var KEY='matveckan.shared.v1';
+var APP_VERSION='18-delad';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -465,7 +465,130 @@ function load(){
     if(!S.units)S.units=[];if(!S.unitOf)S.unitOf={};
   }catch(e){S=fresh()}
 }
-function save(){store.set(KEY,JSON.stringify(S))}
+function save(){S.rev=(S.rev||0)+1;store.set(KEY,JSON.stringify(S));scheduleSync()}
+/* ---------------- Supabase-synk ---------------- */
+var DIRTY={checked:{},qty:{},cooked:{}},syncBusy=false,syncTimer=null,syncNote='';
+function sync(){
+  if(!S.sync)S.sync={url:'',key:'',code:'',on:false,last:0};
+  return S.sync;
+}
+function syncReady(){var c=sync();return !!(c.on&&c.url&&c.key&&c.code)}
+function syncHeaders(){
+  var c=sync();
+  return {'apikey':c.key,'Authorization':'Bearer '+c.key,'Content-Type':'application/json',
+          'Prefer':'resolution=merge-duplicates'};
+}
+function markDirty(map,k){if(DIRTY[map])DIRTY[map][k]=true}
+function payload(){
+  var o={},skip={sync:1,rev:1,lastRev:1};
+  for(var k in S)if(!skip[k])o[k]=S[k];
+  return o;
+}
+function adopt(doc){
+  var keep=S.sync,rev=S.rev,last=S.lastRev;
+  S=doc;S.sync=keep;S.rev=rev;S.lastRev=last;
+  if(!S.weeks)S.weeks=SEED_STD();
+  rebuildDays();
+}
+function applyDirty(base){
+  ['checked','qty','cooked'].forEach(function(m){
+    base[m]=base[m]||{};
+    for(var k in DIRTY[m]){
+      if(S[m]&&S[m][k]!==undefined)base[m][k]=S[m][k];else delete base[m][k];
+    }
+  });
+  return base;
+}
+function remoteAsk(sel){
+  var c=sync();
+  return fetch(c.url.replace(/\/+$/,'')+'/rest/v1/matveckan?select='+sel+'&code=eq.'+encodeURIComponent(c.code),
+    {headers:syncHeaders()}).then(function(r){
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(rows){return (rows&&rows[0])||null});
+}
+/* Fråga först bara efter versionsnumret – några byte i stället för hela listan.
+   Hela dokumentet hämtas bara när någon annan faktiskt skrivit något. */
+function remoteGet(){
+  return remoteAsk('rev').then(function(row){
+    if(!row)return null;
+    if(row.rev<=(S.lastRev||0))return row;
+    return remoteAsk('data,rev');
+  });
+}
+function remotePut(doc,rev){
+  var c=sync();
+  return fetch(c.url.replace(/\/+$/,'')+'/rest/v1/matveckan',{
+    method:'POST',headers:syncHeaders(),
+    body:JSON.stringify({code:c.code,data:doc,rev:rev,updated_at:new Date().toISOString()})
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r});
+}
+function syncNow(loud){
+  if(!syncReady()){if(loud)toast('Synk är inte påslagen');return Promise.resolve()}
+  if(syncBusy)return Promise.resolve();
+  syncBusy=true;syncNote='';
+  return remoteGet().then(function(row){
+    var mine=S.rev||0;
+    if(row&&row.rev>(S.lastRev||0)){
+      var doc=applyDirty(row.data||{}),rev=Math.max(row.rev,mine)+1;
+      adopt(doc);S.rev=rev;S.lastRev=rev;
+      DIRTY={checked:{},qty:{},cooked:{}};
+      sync().last=Date.now();save();
+      return remotePut(payload(),rev).then(function(){if(loud)toast('Hämtad och sammanfogad')});
+    }
+    var r2=mine+1;
+    return remotePut(payload(),r2).then(function(){
+      S.rev=r2;S.lastRev=r2;DIRTY={checked:{},qty:{},cooked:{}};
+      sync().last=Date.now();save();
+      if(loud)toast('Skickad');
+    });
+  }).then(function(){syncBusy=false;render()},function(e){
+    syncBusy=false;syncNote=String(e.message||e);
+    if(loud)toast('Synk misslyckades: '+syncNote);
+    render();
+  });
+}
+function scheduleSync(){
+  if(!syncReady())return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(function(){syncNow(false)},4000);
+}
+function syncPanel(){
+  var c=sync(),h='<div class="sec-title">Delad lista</div>';
+  if(syncReady()){
+    var d=c.last?Math.round((Date.now()-c.last)/60000):null;
+    h+='<div class="card" style="padding:14px"><div class="row">'+
+       '<span class="grow"><b>Synk på</b><div class="tiny" style="margin-top:4px">Kod: '+esc(c.code)+
+       (d===null?' · aldrig synkad':(d<1?' · synkad nyss':' · synkad för '+d+' min sedan'))+
+       (syncNote?'<br><span style="color:var(--danger)">'+esc(syncNote)+'</span>':'')+'</div></span></div>'+
+       '<div class="row" style="gap:9px;margin-top:11px">'+
+       '<button class="btn grow" onclick="syncNow(true)">Synka nu</button>'+
+       '<button class="btn quiet grow" onclick="syncOff()">Stäng av</button></div></div>';
+  }else{
+    h+='<div class="card" style="padding:14px">'+
+       '<div class="tiny" style="margin-bottom:11px">Fyll i uppgifterna från Supabase och en kod ni båda använder.</div>'+
+       '<div class="field"><label>Project URL</label><input type="text" id="sy_u" value="'+esc(c.url)+'" placeholder="https://xxxx.supabase.co"></div>'+
+       '<div class="field"><label>Anon key</label><input type="text" id="sy_k" value="'+esc(c.key)+'" placeholder="eyJ..."></div>'+
+       '<div class="field" style="margin-bottom:0"><label>Hushållskod</label><input type="text" id="sy_c" value="'+esc(c.code)+'" placeholder="valfritt ord ni delar"></div>'+
+       '<button class="btn wide" style="margin-top:12px" onclick="syncOn()">Slå på synk</button></div>'+
+       '<div class="tiny" style="margin-top:8px">Den som slår på först skickar upp sin lista. Den andra hämtar ner den.</div>';
+  }
+  return h;
+}
+function syncOn(){
+  var c=sync();
+  c.url=document.getElementById('sy_u').value.trim();
+  c.key=document.getElementById('sy_k').value.trim();
+  c.code=document.getElementById('sy_c').value.trim();
+  if(!c.url||!c.key||!c.code){toast('Fyll i alla tre');return}
+  c.on=true;save();render();syncNow(true);
+}
+function syncOff(){sync().on=false;save();render();toast('Synk avstängd')}
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&syncReady())syncNow(false);
+});
+setInterval(function(){if(syncReady()&&!document.hidden)syncNow(false)},25000);
+
 /* Engångsuppdatering av butiksordningen. Rör ingenting annat:
    färskmärkning, butikstillhörighet, bockar, antal och veckor lämnas orörda. */
 var ORDER_STAMP='butiksordning-2026-09-29b';
@@ -516,6 +639,7 @@ function toggleCooked(wn,day,i){
   var d=dayDishes(wn,day)[i];if(!d)return;
   var k=ckey(wn,day,d);
   if(S.cooked[k])delete S.cooked[k];else S.cooked[k]=true;
+  markDirty('cooked',k);
   save();render();
 }
 function cookDays(){var o={},n=cookWeekNo();DAYS.forEach(function(d){o[d[0]]=dayDishes(n,d[0])});return o}
@@ -1091,7 +1215,7 @@ function bumpQty(key,d){
   var cur=qtyOf(it),base=cur==null?0:cur;
   var v=Math.round((base+d)*100)/100;
   if(v<0)v=0;
-  S.qty[key]=v;
+  S.qty[key]=v;markDirty('qty',key);
   if(v===baseQty(it))delete S.qty[key];
   save();render();
 }
@@ -1346,7 +1470,7 @@ function isOnKey(k){
   var v=S.checked[k];
   return v===undefined?(it?defOn(it):false):v;
 }
-function tick(k){S.checked[k]=!isOnKey(k);save();render()}
+function tick(k){S.checked[k]=!isOnKey(k);markDirty('checked',k);save();render()}
 function checkAll(){
   var g=groups();
   framRows(g).concat(willysRows(g)).concat(otherRows(g)).forEach(function(it){S.checked[it.key]=true});
@@ -1571,6 +1695,7 @@ function renderMore(){
      '<div class="tiny" style="margin-top:6px">Appen körs i en sandlåda som töms när sidan laddas om. '+
      'Kopiera texten nedan till Anteckningar efter varje gång du ändrat något, '+
      'och lägg upp appen på en egen adress så fort du kan.</div></div>':'')+
+   syncPanel()+
    '<div class="sec-title">Appversion</div>'+
    '<div class="card" style="padding:14px"><div class="row">'+
      '<span class="grow"><b>Version '+APP_VERSION+'</b>'+
