@@ -189,7 +189,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.shared.v1';
-var APP_VERSION='18-delad';
+var APP_VERSION='23-delad';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -439,7 +439,7 @@ function fresh(){
    extra:[],checked:{},approved:{},later:{},shopOf:seedShops(),editing:false,cookWeek:null,
    ordFram:SEED_FRAM.map(normName),
    ordWillys:SEED_GRUND.map(normName),
-   startDay:'wed',endDay:'tue',temp:{},freshOf:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
+   startDay:'wed',endDay:'tue',temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
 }
 function load(){
   var raw=store.get(KEY);
@@ -461,7 +461,7 @@ function load(){
     if(!S.ordWillys)S.ordWillys=SEED_GRUND.map(normName);
     if(S.editing===undefined)S.editing=false;
     if(!S.startDay)S.startDay='wed';if(!S.endDay)S.endDay='tue';if(!S.temp)S.temp={};
-    if(!S.freshOf)S.freshOf={};if(!S.qty)S.qty={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
+    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
     if(!S.units)S.units=[];if(!S.unitOf)S.unitOf={};
   }catch(e){S=fresh()}
 }
@@ -480,7 +480,8 @@ function syncHeaders(){
 }
 function markDirty(map,k){if(DIRTY[map])DIRTY[map][k]=true}
 function payload(){
-  var o={},skip={sync:1,rev:1,lastRev:1};
+  refreshReminders();
+  var o={},skip={sync:1,rev:1,lastRev:1,push:1};
   for(var k in S)if(!skip[k])o[k]=S[k];
   return o;
 }
@@ -589,6 +590,68 @@ document.addEventListener('visibilitychange',function(){
 });
 setInterval(function(){if(syncReady()&&!document.hidden)syncNow(false)},25000);
 
+/* ---------------- Push-notiser ---------------- */
+var VAPID_PUBLIC='BFSmAXxrKg1xR5TVr6i9wHTGoIg3eUb7hh0m4TR32Ox22XX4uW5K4WtpaORSsWKWrq3MAHWW9z2vwhdJzJkKLrw';
+function b64ToU8(b){
+  var pad='='.repeat((4-b.length%4)%4),raw=atob((b+pad).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from(raw.split('').map(function(c){return c.charCodeAt(0)}));
+}
+function pushState(){return S.push||(S.push={on:false,endpoint:''})}
+function pushSupported(){return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window}
+function pushOn(){
+  if(!pushSupported()){toast('Notiser stöds inte här');return}
+  if(!syncReady()){toast('Slå på synken först');return}
+  Notification.requestPermission().then(function(perm){
+    if(perm!=='granted'){toast('Notiser nekades');return}
+    return navigator.serviceWorker.ready.then(function(reg){
+      return reg.pushManager.getSubscription().then(function(sub){
+        return sub||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});
+      });
+    }).then(function(sub){
+      var c=sync();
+      return fetch(c.url.replace(/\/+$/,'')+'/rest/v1/push_subs',{
+        method:'POST',headers:syncHeaders(),
+        body:JSON.stringify({code:c.code,sub:sub.toJSON()})
+      }).then(function(r){
+        if(!r.ok&&r.status!==409)throw new Error('HTTP '+r.status);
+        pushState().on=true;pushState().endpoint=sub.endpoint;save();render();
+        toast('Notiser påslagna');
+      });
+    });
+  }).catch(function(e){toast('Kunde inte slå på: '+(e.message||e))});
+}
+function pushOff(){
+  navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription()})
+   .then(function(sub){
+     var c=sync(),ep=sub?sub.endpoint:pushState().endpoint;
+     if(sub)sub.unsubscribe();
+     if(!ep)return;
+     return fetch(c.url.replace(/\/+$/,'')+'/rest/v1/push_subs?sub->>endpoint=eq.'+encodeURIComponent(ep),
+       {method:'DELETE',headers:syncHeaders()});
+   }).then(function(){pushState().on=false;pushState().endpoint='';save();render();toast('Notiser avstängda')},
+     function(){pushState().on=false;save();render()});
+}
+function pushPanel(){
+  var p=pushState();
+  return '<div class="sec-title">Notiser</div>'+
+    '<div class="card" style="padding:14px">'+
+    '<div class="tiny">Larm 06:45 på vardagar och 09:15 på helger och röda dagar, '+
+    remindDaysText()+' en färskvara behövs.</div>'+
+    '<div class="row" style="margin-top:11px"><span class="grow tiny">Varsel</span>'+
+    '<div class="stepper"><button onclick="bumpRemindDays(-1)">&minus;</button>'+
+    '<span>'+remindDays()+'</span>'+
+    '<button onclick="bumpRemindDays(1)">+</button></div>'+
+    '<span class="tiny" style="margin-left:8px">dagar innan</span></div>'+
+    (!syncReady()
+      ? '<div class="tiny" style="margin-top:11px;color:var(--danger)">Slå på synken ovan först &ndash; '+
+        'notiserna skickas via Supabase.</div>'
+      : (p.on
+          ? '<button class="btn quiet wide" style="margin-top:11px" onclick="pushOff()">Stäng av notiser på den här enheten</button>'
+          : '<button class="btn wide" style="margin-top:11px" onclick="pushOn()">Slå på notiser</button>'))+
+    '<div class="tiny" style="margin-top:8px">Kräver att appen ligger på hemskärmen och öppnas därifrån. '+
+    'Varje enhet slår på sina egna.</div></div>';
+}
+
 /* Engångsuppdatering av butiksordningen. Rör ingenting annat:
    färskmärkning, butikstillhörighet, bockar, antal och veckor lämnas orörda. */
 var ORDER_STAMP='butiksordning-2026-09-29b';
@@ -674,8 +737,19 @@ function toggleFresh(n){
   save();render();
   toast(n+(isFresh(n)?' är färskvara':' är inte färskvara'));
 }
-var LATER_FROM=4; /* behövs dag 5 eller senare */
-function autoLater(it){return !!(it.fresh&&it.off>=LATER_FROM)}
+var FRESH_DAYS_DEFAULT=5;
+function freshDays(n){
+  var v=S.freshDays&&S.freshDays[normName(n)];
+  return (typeof v==='number'&&v>0)?v:FRESH_DAYS_DEFAULT;
+}
+function bumpFreshDays(n,d){
+  var k=normName(n),v=Math.max(1,Math.min(30,freshDays(n)+d));
+  S.freshDays[k]=v;
+  if(v===FRESH_DAYS_DEFAULT)delete S.freshDays[k];
+  save();render();
+}
+/* flaggas när varan behövs senare än den håller */
+function autoLater(it){return !!(it.fresh&&it.off>=freshDays(it.n)-1)}
 function isLater(it){
   if(S.later[it.key]===true)return true;
   if(S.later[it.key]===false)return false;
@@ -1293,7 +1367,7 @@ function pendingBlock(g){
     h+='<li style="flex-direction:column;align-items:stretch;gap:8px">'+
        '<div class="row" style="align-items:flex-start"><span class="grow"><b style="font-weight:600">'+esc(it.n)+'</b> '+
        (it.q!=null?'<span class="qty">'+fmtQ(it.q)+' '+esc(it.u)+'</span>':'')+
-       (autoLater(it)?'<span class="pill late">färskt &middot; '+offsetLabel(it.off)+'</span>':'')+
+       (autoLater(it)?'<span class="pill late">håller '+freshDays(it.n)+' dagar &middot; behövs '+offsetLabel(it.off)+'</span>':'')+
        '<div class="src">'+esc(it.src)+(autoLater(it)?' &middot; föreslås som komplettering':'')+'</div></span>'+
        '<button class="x" onclick="approve(\''+q1(it.key)+'\',false)">&times;</button></div>'+
        '<div class="row" style="gap:6px">'+
@@ -1349,6 +1423,108 @@ function listBlock(title,shop,list,storeOrder,inputId,placeholder){
     '<button class="btn" onclick="addExtra(\''+inputId+'\',\''+shop+'\')">Lägg till</button></div>';
   return h;
 }
+/* ---- kalenderpåminnelser för kompletteringslistan ---- */
+var REMIND_DAYS_DEFAULT=1,REMIND_TIME='0645';
+function remindDays(){
+  var v=S.remindDays;
+  return (typeof v==='number'&&v>=0)?v:REMIND_DAYS_DEFAULT;
+}
+function bumpRemindDays(d){
+  S.remindDays=Math.max(0,Math.min(14,remindDays()+d));
+  save();render();
+}
+function remindDaysText(){
+  var d=remindDays();
+  return d===0?'samma dag':(d===1?'dagen innan':d+' dagar innan');
+}
+function nextStart(){
+  var want=CYC.indexOf(S.startDay||'wed'),d=new Date();
+  d.setHours(12,0,0,0);
+  for(var i=0;i<8;i++){
+    var js=(d.getDay()+6)%7;            /* 0 = måndag */
+    if(js===want)return d;
+    d.setDate(d.getDate()+1);
+  }
+  return new Date();
+}
+function iso(d){
+  var m=('0'+(d.getMonth()+1)).slice(-2),dd=('0'+d.getDate()).slice(-2);
+  return d.getFullYear()+'-'+m+'-'+dd;
+}
+function stamp(d){return iso(d).replace(/-/g,'')}
+function remindList(){
+  var g=groups(),all=splitLater(framRows(g)).late.map(function(it){it._s='Fram';return it})
+    .concat(splitLater(willysRows(g)).late.map(function(it){it._s='Willys';return it}))
+    .concat(splitLater(otherRows(g)).late.map(function(it){it._s=storeOf(it.n);return it}));
+  var base=S.periodStart?new Date(S.periodStart+'T12:00:00'):nextStart(),by={},out=[];
+  all.forEach(function(it){
+    var need=new Date(base.getTime());need.setDate(need.getDate()+it.off);
+    var warn=new Date(need.getTime());warn.setDate(warn.getDate()-remindDays());
+    var k=stamp(warn);
+    if(!by[k]){by[k]={when:warn,items:[]};out.push(by[k])}
+    by[k].items.push({n:it.n,shop:it._s,need:need});
+  });
+  out.sort(function(a,b){return a.when-b.when});
+  return out;
+}
+function reminderPlan(){
+  return remindList().map(function(r){
+    return {date:iso(r.when),
+            items:r.items.map(function(x){return x.n+' ('+x.shop+')'}),
+            need:iso(r.items[0].need)};
+  });
+}
+function icsText(){
+  var rows=remindList(),s=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Matveckan//SV','CALSCALE:GREGORIAN'];
+  rows.forEach(function(r,i){
+    var names=r.items.map(function(x){return x.n}).join(', '),
+        body=r.items.map(function(x){
+          return x.n+' ('+x.shop+') behövs '+['sön','mån','tis','ons','tor','fre','lör'][x.need.getDay()]+' '+iso(x.need);
+        }).join('\\n');
+    s.push('BEGIN:VEVENT');
+    s.push('UID:matveckan-'+stamp(r.when)+'-'+i+'@matveckan');
+    s.push('DTSTAMP:'+stamp(new Date())+'T000000Z');
+    s.push('DTSTART:'+stamp(r.when)+'T'+REMIND_TIME+'00');
+    s.push('DTEND:'+stamp(r.when)+'T'+REMIND_TIME+'00');
+    s.push('SUMMARY:Handla färskvaror: '+names);
+    s.push('DESCRIPTION:'+body);
+    s.push('BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Handla färskvaror','END:VALARM');
+    s.push('END:VEVENT');
+  });
+  s.push('END:VCALENDAR');
+  return s.join('\r\n');
+}
+function remindSheet(){
+  var base=S.periodStart||iso(nextStart()),rows=remindList(),h='';
+  h+='<h2>Påminnelser</h2>'+
+     '<div class="tiny" style="margin:-6px 0 12px">Larm 06:45, '+remindDaysText()+' varan behövs.</div>'+
+     '<div class="row" style="margin-bottom:14px"><span class="grow tiny">Varsel</span>'+
+     '<div class="stepper"><button onclick="bumpRemindDays(-1);remindSheet()">&minus;</button>'+
+     '<span>'+remindDays()+'</span>'+
+     '<button onclick="bumpRemindDays(1);remindSheet()">+</button></div>'+
+     '<span class="tiny" style="margin-left:8px">dagar innan</span></div>'+
+     '<div class="field"><label>Perioden börjar</label>'+
+     '<input type="date" id="rp_d" value="'+base+'" onchange="S.periodStart=this.value;save();remindSheet()"></div>';
+  if(!rows.length)h+='<div class="empty">Inget i kompletteringslistan att påminna om.</div>';
+  else{
+    h+='<div class="card"><ul class="slist">';
+    rows.forEach(function(r){
+      h+='<li><span class="grow"><b style="font-weight:600">'+iso(r.when)+' kl 06:45</b>'+
+         '<div class="src">'+esc(r.items.map(function(x){return x.n}).join(', '))+'</div></span></li>';
+    });
+    h+='</ul></div>'+
+       '<button class="btn wide" style="margin-top:12px" onclick="icsDownload()">Lägg i kalendern</button>'+
+       '<div class="tiny" style="margin-top:8px">Fungerar bäst från Safari. Öppnar filen inte Kalendern, '+
+       'spara den i Filer och tryck på den där.</div>';
+  }
+  sheetOpen(h);
+}
+function icsDownload(){
+  var b=new Blob([icsText()],{type:'text/calendar'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='matveckan-paminnelser.ics';
+  document.body.appendChild(a);a.click();a.remove();
+}
+function refreshReminders(){try{S.reminders=reminderPlan()}catch(e){}}
 function laterCount(g){
   return splitLater(framRows(g)).late.length+splitLater(willysRows(g)).late.length+splitLater(otherRows(g)).late.length;
 }
@@ -1366,8 +1542,9 @@ function laterBlock(g,storeOrder){
       .concat(splitLater(otherRows(g)).late.map(function(it){it._s=storeOf(it.n);return it}));
   if(!all.length)return '';
   all.sort(function(a,b){return (a.off-b.off)||bySv(a,b)});
-  var h='<div id="later"></div><div class="sec-title"><span>Komplettering &middot; handlas senare</span></div>'+
-    '<div class="tiny" style="margin:-4px 0 8px">Färskvaror som inte behövs förrän dag '+(LATER_FROM+1)+' eller senare.</div>'+
+  var h='<div id="later"></div><div class="sec-title"><span>Komplettering &middot; handlas senare</span>'+
+    '<button onclick="remindSheet()">Påminnelser</button></div>'+
+    '<div class="tiny" style="margin:-4px 0 8px">Färskvaror som behövs senare än de håller.</div>'+
     '<div class="card"><ul class="slist">';
   all.forEach(function(it){
     window._rows=window._rows||{};window._rows[it.key]=it;
@@ -1497,8 +1674,16 @@ function itemSheet(key,shop){
          '<button class="btn" onclick="renameItem(\''+q1(key)+'\',\''+shop+'\')">Spara</button></div>'
        : '<div class="tiny">Namnet kommer från receptet och ändras under Planera &rarr; Recept.</div>')+'</div>';
   h+='<div class="field"><label>Färskvara</label>'+
-     '<button class="btn '+(isFresh(it.n)?'':'quiet ')+'wide" onclick="toggleFresh(\''+q1(it.n)+'\');sheetClose()">'+
-     (isFresh(it.n)?'Ja – kan hamna i kompletteringen':'Nej – följer alltid med')+'</button></div>';
+     '<button class="btn '+(isFresh(it.n)?'':'quiet ')+'wide" onclick="freshFromSheet(\''+q1(key)+'\',\''+shop+'\',\''+q1(it.n)+'\')">'+
+     (isFresh(it.n)?'Ja – kan hamna i kompletteringen':'Nej – följer alltid med')+'</button>'+
+     (isFresh(it.n)
+       ? '<div class="row" style="margin-top:11px"><span class="grow tiny">Håller i</span>'+
+         '<div class="stepper"><button onclick="daysFromSheet(\''+q1(key)+'\',\''+shop+'\',\''+q1(it.n)+'\',-1)">&minus;</button>'+
+         '<span>'+freshDays(it.n)+'</span>'+
+         '<button onclick="daysFromSheet(\''+q1(key)+'\',\''+shop+'\',\''+q1(it.n)+'\',1)">+</button></div>'+
+         '<span class="tiny" style="margin-left:8px">dagar</span></div>'+
+         '<div class="tiny" style="margin-top:7px">Behövs varan senare än så hamnar den i kompletteringslistan.</div>'
+       : '')+'</div>';
   h+='<div class="field"><label>Butik</label>'+
      '<button class="btn quiet wide" onclick="storePicker(\''+q1(key)+'\',\''+q1(it.n)+'\')">'+
      (shop==='fram'?'Fram':shop==='willys'?'Willys':esc(storeOf(it.n)))+' &middot; byt</button></div>';
@@ -1516,9 +1701,11 @@ function itemSheet(key,shop){
      '</div>';
   sheetOpen(h);
 }
+function freshFromSheet(key,shop,name){toggleFresh(name);itemSheet(key,shop)}
+function daysFromSheet(key,shop,name,d){bumpFreshDays(name,d);itemSheet(key,shop)}
 function carryKeys(from,to){
   if(from===to)return;
-  ['shopOf','freshOf','storeName'].forEach(function(m){
+  ['shopOf','freshOf','freshDays','storeName'].forEach(function(m){
     if(S[m][from]!==undefined&&S[m][to]===undefined)S[m][to]=S[m][from];
     delete S[m][from];
   });
@@ -1695,7 +1882,7 @@ function renderMore(){
      '<div class="tiny" style="margin-top:6px">Appen körs i en sandlåda som töms när sidan laddas om. '+
      'Kopiera texten nedan till Anteckningar efter varje gång du ändrat något, '+
      'och lägg upp appen på en egen adress så fort du kan.</div></div>':'')+
-   syncPanel()+
+   syncPanel()+pushPanel()+
    '<div class="sec-title">Appversion</div>'+
    '<div class="card" style="padding:14px"><div class="row">'+
      '<span class="grow"><b>Version '+APP_VERSION+'</b>'+
@@ -1740,16 +1927,25 @@ function backupBanner(){
 }
 function updateApp(){
   toast('Hämtar…');
-  var done=function(){location.reload()};
-  if(!('caches' in window)){done();return}
-  caches.keys().then(function(ks){
-    return Promise.all(ks.map(function(k){return caches.delete(k)}));
-  }).then(function(){
-    if(!('serviceWorker' in navigator))return;
-    return navigator.serviceWorker.getRegistrations().then(function(rs){
-      return Promise.all(rs.map(function(r){return r.update()}));
+  if(!('caches' in window)||!navigator.onLine){
+    if(!navigator.onLine){toast('Ingen uppkoppling – försök igen senare');return}
+    location.reload();return;
+  }
+  /* hämta den nya sidan FÖRST, töm cachen först när den är i hamn */
+  fetch('./delad.html',{cache:'reload'}).then(function(res){
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    return caches.keys().then(function(ks){
+      return Promise.all(ks.map(function(k){return caches.delete(k)}));
+    }).then(function(){
+      return navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(function(rs){
+        return Promise.all(rs.map(function(r){return r.update()}));
+      }):null;
     });
-  }).then(done,done);
+  }).then(function(){
+    location.reload();
+  }).catch(function(e){
+    toast('Kunde inte hämta: '+(e.message||e)+' – appen är kvar som den är');
+  });
 }
 function inFrame(){try{return window.self!==window.top}catch(e){return true}}
 function copyBackup(){
@@ -1792,7 +1988,7 @@ function load2(d){
   if(!d.weeks&&d.std)d.weeks=d.std;
   if(!d.weeks)d.weeks=SEED_STD();
   if(!d.activeWeeks)d.activeWeeks=d.activeWeek?[d.activeWeek]:[1];
-  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
+  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.freshDays)d.freshDays={};if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
   if(!d.editWeek)d.editWeek=d.activeWeeks[0]||1;
   if(!d.extra)d.extra=[];if(!d.checked)d.checked={};if(!d.approved)d.approved={};
   if(!d.shopOf)d.shopOf=seedShops();
