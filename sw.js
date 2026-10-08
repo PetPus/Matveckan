@@ -1,5 +1,5 @@
 /* Matveckan – cachen först, uppdatering på begäran. */
-var CACHE='matveckan-23';
+var CACHE='matveckan-31';
 var FILES=['./','./index.html','./delad.html'];
 
 self.addEventListener('install',function(e){
