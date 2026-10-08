@@ -56,6 +56,10 @@ body[data-view="more"]{
   --t1:#8A3FFC; --t2:#00C2D7; --tdeep:#5B2BBF; --tglow:rgba(120,60,220,.95);
   --hdr:linear-gradient(118deg,rgba(138,63,252,.93) 0%,rgba(0,194,215,.9) 100%);
 }
+html{background:#FFF4FB}
+html[data-view="shop"]{background:#F2FDFB}
+html[data-view="cook"]{background:#FFF8EE}
+html[data-view="more"]{background:#FFF4FB}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{
@@ -283,6 +287,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
   padding:12px 14px;border-radius:999px;background:rgba(255,255,255,.82);backdrop-filter:blur(14px);
   border:1px solid var(--edge);box-shadow:0 10px 24px -12px rgba(60,25,90,.55)}
 .jump:active{transform:scale(.95)}
+.jump.round{width:44px;height:44px;padding:0;display:grid;place-items:center;font-size:18px}
 .fab{position:relative;z-index:35;display:none;
   font-family:var(--rounded);color:#fff;border-radius:999px;padding:14px 22px;font-size:14.5px;font-weight:800;
   background:linear-gradient(135deg,var(--pink),#E01E5A);box-shadow:0 14px 30px -10px rgba(224,30,90,.95)}
@@ -334,9 +339,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"></div>
 <div class="fabbar" id="fabbar">
-  <button class="jump" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Längst upp">&#8593; Överst</button>
+  <button class="jump round" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Överst">&#8593;</button>
   <button class="jump" onclick="jumpTo('sec-fram')">Fram</button>
   <button class="jump" onclick="jumpTo('sec-willys')">Willys</button>
+  <button class="jump round" onclick="scrollBottom()" aria-label="Nederst">&#8595;</button>
   <button class="fab" id="fab" onclick="toggleEditAll()"></button>
 </div>
 <div class="rail" id="rail"></div>
@@ -348,7 +354,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='31';
+var APP_VERSION='33';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -596,7 +602,7 @@ function seedStoreNames(){
   var m={};SEED_OTHER.forEach(function(o){m[normName(o.n)]=o.b});return m;
 }
 /* ---------------- state ---------------- */
-var S,current='plan',sub='week',LIST_fram=[],LIST_willys=[];
+var S,current='plan',sub='shop',LIST_fram=[],LIST_willys=[];
 function uid(){return 'x'+Math.random().toString(36).slice(2,9)}
 function fresh(){
   return{recipes:SEED_RECIPES.slice(),weeks:SEED_STD(),activeWeeks:[1,2],editWeek:1,
@@ -796,6 +802,7 @@ function go(v,s){
   document.getElementById('v-'+v).classList.add('on');
   document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
   document.body.setAttribute('data-view',v);
+  document.documentElement.setAttribute('data-view',v);
   document.getElementById('hdr').firstChild.nodeValue=TITLES[v];
   window.scrollTo(0,0);render();
 }
@@ -813,7 +820,7 @@ function render(){
 /* ---------------- PLANERA ---------------- */
 function renderPlan(){
   var h='<div class="subtabs">';
-  ['week','shop','recipes'].forEach(function(k){
+  ['shop','week','recipes'].forEach(function(k){
     h+='<button class="'+(sub===k?'on':'')+'" onclick="setSub(\''+k+'\')">'+SUBS[k]+'</button>';
   });
   h+='</div>';
@@ -1468,6 +1475,14 @@ function firstLetter(n){
   if(c==='É')c='E';
   return ALFA.indexOf(c)>-1?c:'#';
 }
+function scrollBottom(){
+  var v=document.querySelector('.view.on'),de=document.documentElement;
+  var max=Math.max(0,de.scrollHeight-window.innerHeight);
+  if(!v){window.scrollTo({top:max,behavior:'smooth'});return}
+  /* lägg sista raden strax ovanför knappraden */
+  var y=window.scrollY+v.getBoundingClientRect().bottom-window.innerHeight+160;
+  window.scrollTo({top:Math.max(0,Math.min(max,y)),behavior:'smooth'});
+}
 function jumpTo(id){
   var el=document.getElementById(id);
   if(el)el.scrollIntoView({block:'start'});
@@ -2075,7 +2090,7 @@ function restoreBackup(){
   try{
     var d=JSON.parse(v);
     if(!d.weeks&&!d.plan)throw 0;
-    load2(d);S=d;save();rebuildDays();go('plan','week');toast('Återställd');
+    load2(d);S=d;save();rebuildDays();go('plan','shop');toast('Återställd');
   }catch(e){alert('Texten gick inte att läsa. Kontrollera att hela säkerhetskopian kom med.')}
 }
 function expData(){
@@ -2086,7 +2101,7 @@ function expData(){
 }
 function impData(inp){
   var f=inp.files[0];if(!f)return;var fr=new FileReader();
-  fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d.weeks&&!d.plan)throw 0;S=d;load2(d);save();go('plan','week');toast('Importerad')}
+  fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d.weeks&&!d.plan)throw 0;S=d;load2(d);save();go('plan','shop');toast('Importerad')}
    catch(e){alert('Filen gick inte att läsa. Välj en fil som exporterats härifrån.')}};
   fr.readAsText(f);
 }
@@ -2106,7 +2121,7 @@ function load2(d){
   if(!d.storeName)d.storeName=seedStoreNames();
 }
 function wipe(){if(!confirm('Rensa allt och börja om från Påminnelse-listan?'))return;
-  store.del(KEY);S=fresh();save();go('plan','week');toast('Allt rensat')}
+  store.del(KEY);S=fresh();save();go('plan','shop');toast('Allt rensat')}
 
 /* ---------------- ui ---------------- */
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('on');
@@ -2176,7 +2191,7 @@ document.querySelectorAll('nav button').forEach(function(b){b.onclick=function()
 load();
 applyNewOrder();
 rebuildDays();
-gotoToday();go('plan','week');
+gotoToday();go('plan','shop');
 
 if('serviceWorker' in navigator&&location.protocol==='https:'){
   navigator.serviceWorker.register('sw.js').catch(function(){});
