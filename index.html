@@ -212,6 +212,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .done .txt b{font-weight:400;text-decoration:line-through}
 .qty{color:var(--muted);font-variant-numeric:tabular-nums}
 .src{font-size:12px;color:var(--muted);margin-top:4px}
+.src .sug{font-weight:800;color:var(--tdeep);font-family:var(--rounded)}
+.src .sug.none{font-weight:600;color:var(--muted);font-style:italic;font-family:inherit}
 
 .ord{display:flex;flex-direction:column;gap:3px}
 .ord button{width:31px;height:21px;border-radius:7px;font-size:10px;color:var(--tdeep);
@@ -354,7 +356,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='35';
+var APP_VERSION='37';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -1493,6 +1495,15 @@ function pendingBlock(g){
   });
   return h+'</ul></div>';
 }
+/* raden under varunamnet: receptets förslag och varifrån det kommer */
+function srcLine(it){
+  if(!it.src)return '';
+  if(!it.auto)return '<div class="src">'+esc(it.src)+'</div>';
+  var sug=it.q!=null
+    ? '<b class="sug">Recept: '+fmtQ(it.q)+(it.u?' '+esc(it.u):'')+'</b>'
+    : '<b class="sug none">Ingen mängd i receptet</b>';
+  return '<div class="src">'+sug+' &middot; '+esc(it.src)+'</div>';
+}
 function itemRow(it,shop,storeOrder){
   window._rows=window._rows||{};window._rows[it.key]=it;
   var on=isOn(it),edit=!!S.editing;
@@ -1505,10 +1516,11 @@ function itemRow(it,shop,storeOrder){
     '<svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg></button>'+
     '<span class="grow txt"><b style="font-weight:600">'+esc(it.n)+'</b>'+
     (it.auto?'<span class="pill r">recept</span>':'')+
+    (edit&&isFresh(it.n)?'<span class="pill late">färsk '+freshDays(it.n)+' d</span>':'')+
     (it.auto&&S.qty[it.key]!==undefined?'<span class="pill q">ändrad</span>':'')+
-    (it.src?'<div class="src">'+esc(it.src)+'</div>':'')+'</span>'+
+    srcLine(it)+'</span>'+
     (edit
-      ? '<button class="mv'+(isFresh(it.n)?' hint':'')+'" onclick="itemSheet(\''+q1(it.key)+'\',\''+shop+'\')">ändra</button>'+
+      ? '<button class="mv" onclick="itemSheet(\''+q1(it.key)+'\',\''+shop+'\')">ändra</button>'+
         (storeOrder&&shop!=='other'
           ? '<input class="pos" type="number" min="1" value="'+(ordIdx(shop,it.n)+1)+'" '+
             'onchange="setPos(\''+shop+'\',\''+q1(it.n)+'\',this.value)" '+
