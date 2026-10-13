@@ -16,7 +16,7 @@
   --lime:#2FD17A; --lime-lt:#88EEB4;
   --sun:#FFB020; --sun-lt:#FFD873;
   --r:20px;
-  --glow:0 10px 30px -12px rgba(120,50,170,.45);
+  --glow:0 6px 16px -10px rgba(120,50,170,.35);
 
   /* tema – Planera är utgångsläget */
   --t1:#FF3D92; --t2:#8A3FFC; --tdeep:#7A2FE0; --tglow:rgba(160,40,200,.95);
@@ -76,9 +76,8 @@ body::after{
 body::before{
   content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background-image:
-    repeating-radial-gradient(circle at 6px 6px, rgba(255,255,255,.55) 0 1.4px, rgba(255,255,255,0) 2.6px),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.05'/></svg>");
-  background-size:34px 34px, 140px 140px;opacity:.5;transform:translateZ(0);
+    repeating-radial-gradient(circle at 6px 6px, rgba(255,255,255,.55) 0 1.4px, rgba(255,255,255,0) 2.6px);
+  background-size:34px 34px;opacity:.5;transform:translateZ(0);
 }
 main,header,nav,.sheet,.scrim,.toast,.fab{position:relative;z-index:1}
 
@@ -92,7 +91,6 @@ header{
   padding:calc(14px + env(safe-area-inset-top)) 18px 16px;
   display:flex;align-items:center;gap:12px;
   background:var(--hdr);
-  backdrop-filter:blur(18px) saturate(1.5);
   box-shadow:0 10px 30px -14px rgba(120,30,140,.8);
 }
 header::after{
@@ -107,7 +105,7 @@ header h1{font-size:25px;text-shadow:0 2px 10px rgba(80,20,110,.35)}
 header .sub{font-family:-apple-system,sans-serif;font-size:12px;color:rgba(255,255,255,.86);
   display:block;font-weight:500;letter-spacing:.01em;margin-top:3px}
 header .gear{width:38px;height:38px;display:grid;place-items:center;color:#fff;border-radius:50%;
-  background:rgba(255,255,255,.22);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.45)}
+  background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.45)}
 header .gear svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}
 
 main{padding:22px 16px 32px;max-width:640px;margin:0 auto}
@@ -116,7 +114,7 @@ main{padding:22px 16px 32px;max-width:640px;margin:0 auto}
 /* ---- glasdisken ---- */
 nav{
   position:fixed;left:0;right:0;bottom:0;z-index:30;
-  background:rgba(255,255,255,.55);backdrop-filter:blur(22px) saturate(1.6);
+  background:rgba(255,253,254,.96);
   border-top:1px solid var(--edge);
   display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
   padding:8px 10px calc(8px + env(safe-area-inset-bottom));
@@ -146,7 +144,7 @@ nav button.on{color:#fff;background:linear-gradient(135deg,var(--t1),var(--t2));
   transition:transform .12s ease, box-shadow .12s ease;
 }
 .btn:active{transform:scale(.96);box-shadow:0 6px 14px -10px var(--tglow)}
-.btn.quiet{color:var(--ink);background:var(--glass-hi);backdrop-filter:blur(10px);
+.btn.quiet{color:var(--ink);background:var(--glass-hi);
   border:1px solid var(--edge);box-shadow:0 6px 18px -12px rgba(120,50,170,.6);font-weight:700}
 .btn.danger{color:#fff;background:linear-gradient(135deg,#FF5C7A,#E01E5A);
   box-shadow:0 10px 26px -12px rgba(224,30,90,.95)}
@@ -201,7 +199,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .slist{margin:0;padding:0}
 .slist li{list-style:none;display:flex;gap:13px;padding:14px 15px;border-top:1px solid var(--hair);align-items:center}
 .slist li:first-child{border-top:0}
-.slist li{content-visibility:auto;contain-intrinsic-size:auto 58px}
 
 /* slipat glas som bock */
 .box{width:24px;height:24px;flex:0 0 24px;display:grid;place-items:center;
@@ -215,6 +212,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .qty{color:var(--muted);font-variant-numeric:tabular-nums}
 .src{font-size:12px;color:var(--muted);margin-top:4px}
 .src .sug{font-weight:800;color:var(--tdeep);font-family:var(--rounded)}
+.src .more{font-weight:700;color:var(--tdeep);white-space:nowrap}
 .src .sug.none{font-weight:600;color:var(--muted);font-style:italic;font-family:inherit}
 
 .ord{display:flex;flex-direction:column;gap:3px}
@@ -275,9 +273,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .rail{position:fixed;right:2px;top:calc(96px + env(safe-area-inset-top));bottom:calc(168px + env(safe-area-inset-bottom));
   z-index:34;display:none;flex-direction:column;justify-content:space-between;
   padding:8px 3px;border-radius:999px;touch-action:none;user-select:none;-webkit-user-select:none;
-  background:rgba(255,255,255,.55);backdrop-filter:blur(12px);border:1px solid var(--edge);
-  transition:background .15s ease}
+  background:rgba(255,255,255,.9);border:1px solid var(--edge)}
 .rail.on{display:flex}
+body[data-rail="1"] main{padding-right:40px}
 .rail.drag{background:rgba(255,255,255,.85)}
 .rail button{flex:1;width:26px;min-height:0;font-size:12px;font-weight:800;color:var(--tdeep);
   line-height:1;font-family:var(--rounded);border-radius:999px;display:grid;place-items:center}
@@ -288,7 +286,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .fabbar.on{display:flex}
 .fabbar button{pointer-events:auto}
 .jump{font-family:var(--rounded);font-size:13px;font-weight:800;color:var(--tdeep);white-space:nowrap;
-  padding:12px 14px;border-radius:999px;background:rgba(255,255,255,.82);backdrop-filter:blur(14px);
+  padding:12px 14px;border-radius:999px;background:rgba(255,255,255,.95);
   border:1px solid var(--edge);box-shadow:0 10px 24px -12px rgba(60,25,90,.55)}
 .jump:active{transform:scale(.95)}
 .jump.round{width:44px;height:44px;padding:0;display:grid;place-items:center;font-size:18px}
@@ -358,7 +356,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.shared.v1';
-var APP_VERSION='38-delad';
+var APP_VERSION='39-delad';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -883,7 +881,8 @@ function gotoToday(){
   if(S.periodStart){
     var st=new Date(S.periodStart+'T12:00:00'),now=new Date();now.setHours(12,0,0,0);
     var off=Math.round((now-st)/86400000);
-    if(off>=0){
+    if(off<0){wpos=0;idx=0}            /* perioden har inte börjat: visa första dagen */
+    else{
       var p=Math.floor(off/7),d=off%7;
       if(p<weeks.length&&d<DAYS.length){wpos=p;idx=d}
     }
@@ -1042,7 +1041,8 @@ function planWeek(){
      '<span>'+S.activeWeeks.length+'</span>'+
      '<button onclick="setWeekSpan('+w.n+','+(S.activeWeeks.length+1)+')">+</button></div>'+
      '<span class="tiny" style="margin-left:8px">veckor</span></div>'+
-     '<div class="tiny" style="margin-top:8px">Handlar för '+actLabel()+' &middot; '+periodText()+'</div></div>';
+     '<div class="tiny" style="margin-top:8px">Handlar för '+actLabel()+' &middot; '+periodText()+
+     (S.periodStart?' &middot; start '+prettyDate(S.periodStart):'')+'</div></div>';
   DAYS.forEach(function(d){h+=dayCard(w.n,d[0])});
   h+='<div class="row" style="gap:9px;margin-top:6px">'+
      '<button class="btn quiet grow" onclick="addWeek()">Ny tom vecka</button>'+
@@ -1091,10 +1091,28 @@ function stepWeek(d){
 /* ny period: bockar, "finns hemma" och kompletteringsval gäller bara den period de gjordes i.
    Butiksvalen ligger kvar – en vara du fördelat en gång behöver inte fördelas igen. */
 function resetPeriod(){
-  S.checked={};S.later={};
+  S.checked={};S.later={};S.cooked={};
   for(var k in S.approved)if(S.approved[k]===false)delete S.approved[k];
 }
+function nextStartDate(){
+  var want=CYC.indexOf(S.startDay||'wed'),d=new Date();d.setHours(12,0,0,0);
+  for(var i=0;i<7;i++){if((d.getDay()+6)%7===want)return iso(d);d.setDate(d.getDate()+1)}
+  return iso(new Date());
+}
+function snapStart(v){
+  if(!v)return v;
+  var d=new Date(v+'T12:00:00'),want=CYC.indexOf(S.startDay||'wed');
+  for(var i=0;i<7;i++){if((d.getDay()+6)%7===want)return iso(d);d.setDate(d.getDate()-1)}
+  return v;
+}
+function prettyDate(v){
+  if(!v)return '';
+  var d=new Date(v+'T12:00:00');
+  return ['sön','mån','tis','ons','tors','fre','lör'][d.getDay()]+' '+d.getDate()+' '+
+    ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'][d.getMonth()];
+}
 function toggleActive(n){
+  var before=S.activeWeeks[0];
   var a=S.activeWeeks,i=a.indexOf(n);
   if(i>-1){
     if(a.length===1){toast('Minst en vecka måste vara aktiv');return}
@@ -1102,6 +1120,7 @@ function toggleActive(n){
   }else{
     a.push(n);a.sort(function(x,y){return x-y});
   }
+  if(a[0]!==before)S.periodStart=nextStartDate();
   resetPeriod();save();render();
   toast('Handlar för '+actLabel());
 }
@@ -1119,6 +1138,7 @@ function setWeekSpan(from,n){
   if(i<0)i=0;
   for(var k=0;k<n&&i+k<all.length;k++)out.push(all[i+k].n);
   if(!out.length)return;
+  if(out[0]!==S.activeWeeks[0])S.periodStart=nextStartDate();
   S.activeWeeks=out;resetPeriod();
   save();render();toast('Handlar för '+actLabel());
 }
@@ -1560,8 +1580,15 @@ function stepFor(u){
   if(u==='g')return 50;if(u==='ml')return 50;if(u==='kg')return 0.5;
   if(u==='dl')return 0.5;if(u==='l')return 0.5;return 1;
 }
+var COUNT_UNITS=['','st','bitar','klyfta','klyftor','burk','paket','kruka'];
+/* styck och förpackningar avrundas uppåt – man köper inte en tredjedels ägg */
+function roundBuy(q,u){
+  if(q==null)return q;
+  if(COUNT_UNITS.indexOf(u||'')>-1)return Math.ceil(q-1e-9);
+  return Math.round(q*10)/10;
+}
 function baseQty(it){
-  if(it.q!=null)return it.q;
+  if(it.q!=null)return roundBuy(it.q,it.u);
   if(it.def!=null)return it.def;
   return null;
 }
@@ -1694,9 +1721,12 @@ function srcLine(it){
   if(!it.src)return '';
   if(!it.auto)return '<div class="src">'+esc(it.src)+'</div>';
   var sug=it.q!=null
-    ? '<b class="sug">Recept: '+fmtQ(it.q)+(it.u?' '+esc(it.u):'')+'</b>'
+    ? '<b class="sug">Recept: '+fmtQ(roundBuy(it.q,it.u))+(it.u?' '+esc(it.u):'')+'</b>'
     : '<b class="sug none">Ingen mängd i receptet</b>';
-  return '<div class="src">'+sug+' &middot; '+esc(it.src)+'</div>';
+  var names=it.src.split(', '),list=names.length>2
+    ? esc(names.slice(0,2).join(', '))+' <span class="more">+'+(names.length-2)+' rätter</span>'
+    : esc(it.src);
+  return '<div class="src">'+sug+' &middot; '+list+'</div>';
 }
 function itemRow(it,shop,storeOrder){
   window._rows=window._rows||{};window._rows[it.key]=it;
@@ -1773,6 +1803,7 @@ function syncRail(){
   if(!r)return;
   var show=(current==='plan'&&sub==='shop'&&!(window._lq||''));
   r.className='rail'+(show?' on':'');
+  document.body.setAttribute('data-rail',show?'1':'0');
   if(!show){r.innerHTML='';return}
   var sec=activeSection();
   if(r.innerHTML&&sec===window._sect&&r.getAttribute('data-for')===sec)return;
@@ -1885,7 +1916,7 @@ function remindSheet(){
      '<button onclick="bumpRemindDays(1);remindSheet()">+</button></div>'+
      '<span class="tiny" style="margin-left:8px">dagar innan</span></div>'+
      '<div class="field"><label>Perioden börjar</label>'+
-     '<input type="date" id="rp_d" value="'+base+'" onchange="S.periodStart=this.value;save();remindSheet()"></div>';
+     '<input type="date" id="rp_d" value="'+base+'" onchange="S.periodStart=snapStart(this.value);save();remindSheet()"></div>';
   if(!rows.length)h+='<div class="empty">Inget i kompletteringslistan att påminna om.</div>';
   else{
     h+='<div class="card"><ul class="slist">';
