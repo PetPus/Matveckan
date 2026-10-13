@@ -354,7 +354,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.shared.v1';
-var APP_VERSION='33-delad';
+var APP_VERSION='35-delad';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -1076,13 +1076,19 @@ function delWeek(n){
   if(!S.activeWeeks.length)S.activeWeeks=[S.weeks[0].n];
   DAYS.forEach(function(d){delete S.temp[tkey(n,d[0])]});
   if(S.editWeek===n)S.editWeek=S.weeks[0].n;
-  S.checked={};S.approved={};S.later={};
+  resetPeriod();
   save();render();toast('Vecka '+n+' borttagen');
 }
 function stepWeek(d){
   var i=S.weeks.indexOf(wk(S.editWeek))+d;
   if(i<0||i>=S.weeks.length)return;
   S.editWeek=S.weeks[i].n;save();render();window.scrollTo(0,0);
+}
+/* ny period: bockar, "finns hemma" och kompletteringsval gäller bara den period de gjordes i.
+   Butiksvalen ligger kvar – en vara du fördelat en gång behöver inte fördelas igen. */
+function resetPeriod(){
+  S.checked={};S.later={};
+  for(var k in S.approved)if(S.approved[k]===false)delete S.approved[k];
 }
 function toggleActive(n){
   var a=S.activeWeeks,i=a.indexOf(n);
@@ -1092,7 +1098,7 @@ function toggleActive(n){
   }else{
     a.push(n);a.sort(function(x,y){return x-y});
   }
-  S.checked={};S.approved={};S.later={};save();render();
+  resetPeriod();save();render();
   toast('Handlar för '+actLabel());
 }
 /* perioden räknat i dagar: veckoblock om sju dagar plus de valda dagarna */
@@ -1109,7 +1115,7 @@ function setWeekSpan(from,n){
   if(i<0)i=0;
   for(var k=0;k<n&&i+k<all.length;k++)out.push(all[i+k].n);
   if(!out.length)return;
-  S.activeWeeks=out;S.checked={};S.approved={};S.later={};
+  S.activeWeeks=out;resetPeriod();
   save();render();toast('Handlar för '+actLabel());
 }
 function addWeek(){
@@ -1119,7 +1125,7 @@ function addWeek(){
 function clearWeek(n){
   if(!confirm('Töm vecka '+n+'?'))return;
   var w=wk(n);if(!w)return;
-  w.days=emptyWeek();if(isActive(n)){S.checked={};S.approved={};S.later={}}
+  w.days=emptyWeek();if(isActive(n)){resetPeriod()}
   save();render();
 }
 function dayCard(wn,key){
@@ -1164,12 +1170,54 @@ function addDish(wn,day){
     '<div class="field"><label class="row" style="gap:9px"><input type="checkbox" id="f_b" style="width:auto"> Extra för matlåda</label></div>'+
     '<button class="btn wide" onclick="saveDish('+wn+',\''+day+'\')">Lägg till</button>');
 }
+/* ---- permanent eller bara denna gång ---- */
+function idxOf(a,id){for(var i=0;i<a.length;i++)if(a[i].id===id)return i;return -1}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+/* permanent ändrar standardveckan – och den tillfälliga versionen om dagen har en,
+   så att det du ser stämmer, utan att tillfälliga rätter blir permanenta */
+function applyTo(wn,day,scope,fn){
+  if(scope==='once'){fn(makeTemp(wn,day));return}
+  var w=wk(wn);if(!w)return;
+  w.days[day]=w.days[day]||[];
+  fn(w.days[day]);
+  var t=S.temp[tkey(wn,day)];
+  if(t)fn(t);
+}
+function scopeAsk(title,what){
+  sheetOpen('<h2>'+title+'</h2>'+
+    '<div class="tiny" style="margin:-6px 0 14px">'+what+'</div>'+
+    '<button class="btn wide" style="margin-bottom:8px" onclick="runPending(\'perm\')">Permanent</button>'+
+    '<div class="tiny" style="margin:-4px 0 12px">Ändrar standardveckan, så det gäller varje gång veckan kommer tillbaka.</div>'+
+    '<button class="btn quiet wide" style="margin-bottom:8px" onclick="runPending(\'once\')">Bara denna gång</button>'+
+    '<div class="tiny" style="margin:-4px 0 12px">Standardveckan ligger kvar och dagen kan återställas.</div>'+
+    '<button class="btn quiet wide" onclick="window._pa=null;sheetClose()">Avbryt</button>');
+}
+function runPending(scope){
+  var p=window._pa;if(!p)return;
+  var msg='';
+  if(p.kind==='add'){
+    applyTo(p.wn,p.day,scope,function(a){a.push(clone(p.dish))});
+    msg='Tillagd';
+  }else if(p.kind==='del'){
+    applyTo(p.wn,p.day,scope,function(a){var j=idxOf(a,p.id);if(j>-1)a.splice(j,1)});
+    msg='Borttagen';
+  }else if(p.kind==='move'){
+    var moved=clone(p.dish);
+    for(var k in p.props)moved[k]=p.props[k];
+    applyTo(p.wn,p.day,scope,function(a){var j=idxOf(a,p.id);if(j>-1)a.splice(j,1)});
+    applyTo(p.nw,p.nd,scope,function(a){a.push(clone(moved))});
+    msg='Flyttad till '+dayName(p.nd)+' vecka '+p.nw;
+  }
+  window._pa=null;save();sheetClose();render();
+  toast(msg+(scope==='once'?' – bara denna gång':''));
+}
 function saveDish(wn,day){
-  dayDishes(wn,day).push({id:uid(),recipeId:document.getElementById('f_r').value,
+  var dish={id:uid(),recipeId:document.getElementById('f_r').value,
     portions:parseInt(document.getElementById('f_p').value,10)||4,
     meal:document.getElementById('f_m').value,text:document.getElementById('f_t').value.trim(),
-    matlada:document.getElementById('f_b').checked});
-  save();sheetClose();render();toast('Tillagd');
+    matlada:document.getElementById('f_b').checked};
+  window._pa={kind:'add',wn:wn,day:day,dish:dish};
+  scopeAsk('Lägg till '+esc(dishName(dish)),dayName(day)+' i vecka '+wn+'.');
 }
 function dayOrderAll(){
   var keys=DAYS.map(function(d){return d[0]});
@@ -1224,18 +1272,25 @@ function editDish(wn,day,i){
 }
 function applyEdit(wn,day,i){
   var arr=dayDishes(wn,day),d=arr[i];if(!d)return;
-  var nw=parseInt(document.getElementById('m_w').value,10),nd=document.getElementById('m_d').value;
-  d.meal=document.getElementById('m_m').value;
-  d.portions=parseInt(document.getElementById('m_p').value,10)||4;
-  d.matlada=document.getElementById('m_b').checked;
+  var nw=parseInt(document.getElementById('m_w').value,10),nd=document.getElementById('m_d').value,
+      props={meal:document.getElementById('m_m').value,
+             portions:parseInt(document.getElementById('m_p').value,10)||4,
+             matlada:document.getElementById('m_b').checked};
   if(nw!==wn||nd!==day){
-    arr.splice(i,1);
-    dayDishes(nw,nd).push(d);
-    save();sheetClose();render();toast('Flyttad till '+dayName(nd)+' vecka '+nw);return;
+    if(!d.id)d.id=uid();
+    window._pa={kind:'move',wn:wn,day:day,id:d.id,dish:clone(d),nw:nw,nd:nd,props:props};
+    scopeAsk('Flytta '+esc(dishName(d)),'Från '+dayName(day)+' vecka '+wn+' till '+dayName(nd)+' vecka '+nw+'.');
+    return;
   }
+  for(var k in props)d[k]=props[k];
   save();sheetClose();render();toast('Sparad');
 }
-function delDish(wn,day,i){dayDishes(wn,day).splice(i,1);save();render()}
+function delDish(wn,day,i){
+  var d=dayDishes(wn,day)[i];if(!d)return;
+  if(!d.id){d.id=uid();save()}
+  window._pa={kind:'del',wn:wn,day:day,id:d.id};
+  scopeAsk('Ta bort '+esc(dishName(d)),dayName(day)+' i vecka '+wn+'.');
+}
 
 /* ---------------- recept ---------------- */
 function planRecipes(){
@@ -1469,6 +1524,7 @@ function groups(){
   for(k in map){
     var m=map[k],it={key:k,n:m.n,u:m.u,q:m.q,src:m.src.join(', '),auto:true,
                      off:m.off,fresh:isFresh(m.n)},a=S.approved[k];
+    if(a===undefined)a=shopFor(m.n)||undefined;
     if(a==='fram')fram.push(it);
     else if(a==='other')other.push(it);
     else if(a==='willys')willys.push(it);
