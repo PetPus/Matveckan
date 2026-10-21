@@ -327,12 +327,12 @@ body[data-rail="1"] main{padding-right:40px}
 .ovwrap{overflow-x:auto;margin:0 -16px;padding:0 16px 8px;-webkit-overflow-scrolling:touch}
 .ov{border-collapse:separate;border-spacing:6px;min-width:100%}
 .ov th{font-family:var(--rounded);font-size:13px;font-weight:800;color:var(--ink);text-align:left;white-space:nowrap}
-.ov tbody th{position:sticky;left:0;z-index:2;background:rgba(255,255,255,.92);border-radius:10px;padding:8px 6px;vertical-align:top}
+.ov tbody th{position:sticky;left:0;z-index:2;background:#fff;box-shadow:6px 0 8px -6px rgba(60,25,90,.25);border-radius:10px;padding:8px 6px;vertical-align:top}
 .ov thead button{font-family:var(--rounded);font-weight:800;font-size:13px;color:var(--tdeep);padding:6px 8px;border-radius:10px;
   background:rgba(255,255,255,.85);border:1px solid var(--edge);width:100%;text-align:left}
 .ov thead th.act button{color:#fff;background:linear-gradient(135deg,var(--t1),var(--t2));border-color:transparent}
 .ov thead button span{font-size:10px;opacity:.85;font-weight:700}
-.ov td{min-width:132px;max-width:150px;vertical-align:top;background:rgba(255,255,255,.72);border:1px solid var(--edge);
+.ov td{min-width:132px;max-width:150px;vertical-align:top;background:#FCFAFE;border:1px solid var(--edge);
   border-radius:12px;padding:6px}
 .ov td.act{background:#fff;border-color:var(--t2)}
 .ov td.tmp{box-shadow:inset 0 0 0 2px var(--blush)}
@@ -392,7 +392,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='44';
+var APP_VERSION='45';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -884,6 +884,7 @@ function render(){
   document.getElementById('hdrsub').textContent=subtitle;
   syncFab();syncRail();
   if(anchor)restoreAnchor(anchor);
+  var ow=document.getElementById('ovwrap');if(ow&&window._ovx)ow.scrollLeft=window._ovx;
 }
 
 /* ---------------- PLANERA ---------------- */
@@ -920,7 +921,7 @@ function planWeeks(){
   h+='<div class="row" style="gap:8px;margin-bottom:12px">'+
      '<button class="btn quiet grow" onclick="addWeek();window.scrollTo(0,0)">+ Ny vecka</button>'+
      (hl?'<button class="btn grow" onclick="toggleHl(null)">Visa alla rätter</button>':'')+'</div>';
-  h+='<div class="ovwrap"><table class="ov"><thead><tr><th></th>';
+  h+='<div class="ovwrap" id="ovwrap" onscroll="window._ovx=this.scrollLeft"><table class="ov"><thead><tr><th></th>';
   weeks.forEach(function(w){
     h+='<th class="'+(isActive(w.n)?'act':'')+'"><button onclick="weekSheet('+w.n+')">Vecka '+w.n+
        '<span>'+(isActive(w.n)?'aktiv':dishCount(w)+' rätter')+' &#9662;</span></button></th>';
@@ -2498,7 +2499,7 @@ function restoreBackup(){
   try{
     var d=JSON.parse(v);
     if(!d.weeks&&!d.plan)throw 0;
-    load2(d);S=d;save();rebuildDays();go('plan','shop');toast('Återställd');
+    load2(d);S=d;S.forcePush=true;save();rebuildDays();go('plan','shop');toast('Återställd');
   }catch(e){alert('Texten gick inte att läsa. Kontrollera att hela säkerhetskopian kom med.')}
 }
 function expData(){
@@ -2509,7 +2510,7 @@ function expData(){
 }
 function impData(inp){
   var f=inp.files[0];if(!f)return;var fr=new FileReader();
-  fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d.weeks&&!d.plan)throw 0;S=d;load2(d);save();go('plan','shop');toast('Importerad')}
+  fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d.weeks&&!d.plan)throw 0;S=d;load2(d);S.forcePush=true;save();go('plan','shop');toast('Importerad')}
    catch(e){alert('Filen gick inte att läsa. Välj en fil som exporterats härifrån.')}};
   fr.readAsText(f);
 }

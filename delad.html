@@ -327,12 +327,12 @@ body[data-rail="1"] main{padding-right:40px}
 .ovwrap{overflow-x:auto;margin:0 -16px;padding:0 16px 8px;-webkit-overflow-scrolling:touch}
 .ov{border-collapse:separate;border-spacing:6px;min-width:100%}
 .ov th{font-family:var(--rounded);font-size:13px;font-weight:800;color:var(--ink);text-align:left;white-space:nowrap}
-.ov tbody th{position:sticky;left:0;z-index:2;background:rgba(255,255,255,.92);border-radius:10px;padding:8px 6px;vertical-align:top}
+.ov tbody th{position:sticky;left:0;z-index:2;background:#fff;box-shadow:6px 0 8px -6px rgba(60,25,90,.25);border-radius:10px;padding:8px 6px;vertical-align:top}
 .ov thead button{font-family:var(--rounded);font-weight:800;font-size:13px;color:var(--tdeep);padding:6px 8px;border-radius:10px;
   background:rgba(255,255,255,.85);border:1px solid var(--edge);width:100%;text-align:left}
 .ov thead th.act button{color:#fff;background:linear-gradient(135deg,var(--t1),var(--t2));border-color:transparent}
 .ov thead button span{font-size:10px;opacity:.85;font-weight:700}
-.ov td{min-width:132px;max-width:150px;vertical-align:top;background:rgba(255,255,255,.72);border:1px solid var(--edge);
+.ov td{min-width:132px;max-width:150px;vertical-align:top;background:#FCFAFE;border:1px solid var(--edge);
   border-radius:12px;padding:6px}
 .ov td.act{background:#fff;border-color:var(--t2)}
 .ov td.tmp{box-shadow:inset 0 0 0 2px var(--blush)}
@@ -392,7 +392,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.shared.v1';
-var APP_VERSION='44-delad';
+var APP_VERSION='45-delad';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -693,7 +693,7 @@ function syncHeaders(){
 }
 function markDirty(map,k){if(DIRTY[map])DIRTY[map][k]=true}
 /* sånt som bara gäller den här skärmen – synkas aldrig, skrivs aldrig över */
-var LOCAL_ONLY=['sync','rev','lastRev','push','cookDay','cookTab','cookWeek','editWeek','editing','showDone'];
+var LOCAL_ONLY=['sync','rev','lastRev','pushedRev','forcePush','push','cookDay','cookTab','cookWeek','editWeek','editing','showDone'];
 function payload(){
   refreshReminders();
   var o={},skip={};
@@ -742,33 +742,45 @@ function remotePut(doc,rev){
     body:JSON.stringify({code:c.code,data:doc,rev:rev,updated_at:new Date().toISOString()})
   }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r});
 }
+/* skriver till telefonen utan att räknas som en ändring och utan att starta ny synk */
+function saveQuiet(){store.set(KEY,JSON.stringify(S))}
 function syncNow(loud){
   if(!syncReady()){if(loud)toast('Synk är inte påslagen');return Promise.resolve()}
   if(syncBusy)return Promise.resolve();
   syncBusy=true;syncNote='';
+  var changed=false;
   return remoteGet().then(function(row){
-    var mine=S.rev||0;
-    if(row&&row.rev>(S.lastRev||0)){
-      var doc=applyDirty(row.data||{}),rev=Math.max(row.rev,mine)+1;
-      adopt(doc);S.rev=rev;S.lastRev=rev;
-      DIRTY={checked:{},qty:{},cooked:{}};
-      sync().last=Date.now();save();
-      return remotePut(payload(),rev).then(function(){if(loud)toast('Hämtad och sammanfogad')});
+    var remoteRev=row?row.rev:0,
+        dirty=!!S.forcePush||(S.rev||0)>(S.pushedRev||0),
+        newer=!S.forcePush&&row&&remoteRev>(S.lastRev||0);
+    /* ingen har ändrat något: bara notera att vi kollat */
+    if(!newer&&!dirty){sync().last=Date.now();if(loud)toast('Allt är redan synkat');return}
+    if(newer){
+      /* någon annan har skrivit: ta in deras lista, behåll egna bockar och antal */
+      var doc=applyDirty(row.data||{});
+      adopt(doc);changed=true;
+      if(!dirty){
+        S.lastRev=remoteRev;S.pushedRev=S.rev||0;
+        DIRTY={checked:{},qty:{},cooked:{}};sync().last=Date.now();saveQuiet();
+        if(loud)toast('Hämtad');
+        return;
+      }
     }
-    var r2=mine+1;
-    return remotePut(payload(),r2).then(function(){
-      S.rev=r2;S.lastRev=r2;DIRTY={checked:{},qty:{},cooked:{}};
-      sync().last=Date.now();save();
-      if(loud)toast('Skickad');
+    /* egna ändringar att skicka upp */
+    var next=Math.max(remoteRev,S.lastRev||0)+1;
+    return remotePut(payload(),next).then(function(){
+      S.lastRev=next;S.pushedRev=S.rev||0;S.forcePush=false;
+      DIRTY={checked:{},qty:{},cooked:{}};sync().last=Date.now();saveQuiet();
+      if(loud)toast(newer?'Hämtad och sammanfogad':'Skickad');
     });
   }).then(function(){syncBusy=false;
-    /* rita inte om mitt i en inmatning eller medan en ruta är öppen */
+    /* rita bara om när något kommit in, och aldrig mitt i en inmatning eller ruta */
     var sh=document.getElementById('sheet');
-    if(!isTyping()&&!(sh&&sh.classList.contains('on')))render();
+    if((changed||loud||current==='more')&&!isTyping()&&!(sh&&sh.classList.contains('on')))render();
   },function(e){
     syncBusy=false;syncNote=String(e.message||e);
     if(loud)toast('Synk misslyckades: '+syncNote);
-    render();
+    if(loud||current==='more')render();
   });
 }
 function scheduleSync(){
@@ -1080,6 +1092,7 @@ function render(){
   document.getElementById('hdrsub').textContent=subtitle;
   syncFab();syncRail();
   if(anchor)restoreAnchor(anchor);
+  var ow=document.getElementById('ovwrap');if(ow&&window._ovx)ow.scrollLeft=window._ovx;
 }
 
 /* ---------------- PLANERA ---------------- */
@@ -1116,7 +1129,7 @@ function planWeeks(){
   h+='<div class="row" style="gap:8px;margin-bottom:12px">'+
      '<button class="btn quiet grow" onclick="addWeek();window.scrollTo(0,0)">+ Ny vecka</button>'+
      (hl?'<button class="btn grow" onclick="toggleHl(null)">Visa alla rätter</button>':'')+'</div>';
-  h+='<div class="ovwrap"><table class="ov"><thead><tr><th></th>';
+  h+='<div class="ovwrap" id="ovwrap" onscroll="window._ovx=this.scrollLeft"><table class="ov"><thead><tr><th></th>';
   weeks.forEach(function(w){
     h+='<th class="'+(isActive(w.n)?'act':'')+'"><button onclick="weekSheet('+w.n+')">Vecka '+w.n+
        '<span>'+(isActive(w.n)?'aktiv':dishCount(w)+' rätter')+' &#9662;</span></button></th>';
@@ -2695,7 +2708,7 @@ function restoreBackup(){
   try{
     var d=JSON.parse(v);
     if(!d.weeks&&!d.plan)throw 0;
-    load2(d);S=d;save();rebuildDays();go('plan','shop');toast('Återställd');
+    load2(d);S=d;S.forcePush=true;save();rebuildDays();go('plan','shop');toast('Återställd');
   }catch(e){alert('Texten gick inte att läsa. Kontrollera att hela säkerhetskopian kom med.')}
 }
 function expData(){
@@ -2706,7 +2719,7 @@ function expData(){
 }
 function impData(inp){
   var f=inp.files[0];if(!f)return;var fr=new FileReader();
-  fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d.weeks&&!d.plan)throw 0;S=d;load2(d);save();go('plan','shop');toast('Importerad')}
+  fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d.weeks&&!d.plan)throw 0;S=d;load2(d);S.forcePush=true;save();go('plan','shop');toast('Importerad')}
    catch(e){alert('Filen gick inte att läsa. Välj en fil som exporterats härifrån.')}};
   fr.readAsText(f);
 }
