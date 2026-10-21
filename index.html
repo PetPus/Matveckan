@@ -170,7 +170,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 
 .subtabs{display:flex;gap:5px;margin-bottom:24px;padding:5px;border-radius:999px;
   background:rgba(255,255,255,.6);border:1px solid var(--edge)}
-.subtabs button{flex:1;padding:10px 4px;border-radius:999px;font-size:14px;color:var(--muted);font-weight:600}
+.subtabs button{flex:1;padding:10px 2px;border-radius:999px;font-size:14px;color:var(--muted);font-weight:600}
 .subtabs button.on{color:#fff;font-weight:800;background:linear-gradient(135deg,var(--t2),var(--t1));
   box-shadow:0 8px 18px -10px var(--tglow)}
 
@@ -318,6 +318,38 @@ body[data-rail="1"] main{padding-right:40px}
 .field{margin-bottom:17px}
 .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px;font-weight:600}
 
+.undo{position:fixed;left:12px;right:12px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:61;display:none;
+  align-items:center;gap:12px;padding:12px 12px 12px 18px;border-radius:16px;color:#fff;
+  background:linear-gradient(135deg,var(--t2),var(--t1));box-shadow:0 14px 30px -12px var(--tglow)}
+.undo.on{display:flex}
+.undo span{flex:1;font-weight:600}
+.undo button{font-family:var(--rounded);font-weight:800;color:var(--tdeep);background:#fff;border-radius:999px;padding:9px 16px}
+.ovwrap{overflow-x:auto;margin:0 -16px;padding:0 16px 8px;-webkit-overflow-scrolling:touch}
+.ov{border-collapse:separate;border-spacing:6px;min-width:100%}
+.ov th{font-family:var(--rounded);font-size:13px;font-weight:800;color:var(--ink);text-align:left;white-space:nowrap}
+.ov tbody th{position:sticky;left:0;z-index:2;background:rgba(255,255,255,.92);border-radius:10px;padding:8px 6px;vertical-align:top}
+.ov thead button{font-family:var(--rounded);font-weight:800;font-size:13px;color:var(--tdeep);padding:6px 8px;border-radius:10px;
+  background:rgba(255,255,255,.85);border:1px solid var(--edge);width:100%;text-align:left}
+.ov thead th.act button{color:#fff;background:linear-gradient(135deg,var(--t1),var(--t2));border-color:transparent}
+.ov thead button span{font-size:10px;opacity:.85;font-weight:700}
+.ov td{min-width:132px;max-width:150px;vertical-align:top;background:rgba(255,255,255,.72);border:1px solid var(--edge);
+  border-radius:12px;padding:6px}
+.ov td.act{background:#fff;border-color:var(--t2)}
+.ov td.tmp{box-shadow:inset 0 0 0 2px var(--blush)}
+.ovd{display:block;width:100%;text-align:left;font-size:12px;line-height:1.3;font-weight:600;color:var(--ink);
+  padding:6px 7px;margin-bottom:4px;border-radius:8px;background:rgba(255,255,255,.95);border:1px solid var(--hair)}
+.ovd i{display:block;font-style:normal;font-size:10px;font-weight:800;color:var(--tdeep)}
+.ovd{position:relative}
+.ovd .nm{display:block;padding-right:22px}
+.ovd small{display:block;font-size:10.5px;font-weight:600;color:var(--muted);margin-top:2px}
+.ovd.rec{border-left:4px solid var(--rc)}
+.ovd .rcn{position:absolute;top:4px;right:4px;font-size:10px;font-weight:800;color:#fff;background:var(--rc);
+  border-radius:999px;padding:2px 6px;font-family:var(--rounded)}
+.ovd.dim{opacity:.22}
+.ovd.hl{box-shadow:0 0 0 2px var(--rc);background:#fff}
+.ovtmp{display:block;width:100%;font-size:10.5px;font-weight:700;color:var(--blush-deep);padding:3px 0 0;text-align:left}
+.ov thead button span{display:block}
+.ovadd{display:block;width:100%;font-size:15px;font-weight:800;color:var(--tdeep);padding:2px;border-radius:8px;opacity:.6}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:104px;color:#fff;font-weight:600;
   background:linear-gradient(135deg,var(--t2),var(--t1));
   padding:13px 22px;border-radius:999px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;
@@ -351,6 +383,7 @@ body[data-rail="1"] main{padding-right:40px}
   <button class="fab" id="fab" onclick="toggleEditAll()"></button>
 </div>
 <div class="rail" id="rail"></div>
+<div class="undo" id="undo"></div>
 <div class="toast" id="toast"></div>
 <datalist id="ingnames"></datalist>
 <script>
@@ -359,7 +392,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='42';
+var APP_VERSION='44';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -618,7 +651,7 @@ function fresh(){
    extra:[],checked:{},approved:{},later:{},shopOf:seedShops(),editing:false,cookWeek:null,
    ordFram:SEED_FRAM.map(normName),
    ordWillys:SEED_GRUND.map(normName),
-   startDay:'wed',endDay:'tue',temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
+   startDay:'wed',endDay:'tue',trash:[],temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
 }
 function load(){
   var raw=store.get(KEY);
@@ -641,7 +674,7 @@ function load(){
     if(!S.ordWillys)S.ordWillys=SEED_GRUND.map(normName);
     if(S.editing===undefined)S.editing=false;
     if(!S.startDay)S.startDay='wed';if(!S.endDay)S.endDay='tue';if(!S.temp)S.temp={};
-    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
+    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.trash)S.trash=[];if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
     if(!S.units)S.units=[];if(!S.unitOf)S.unitOf={};
   }catch(e){S=fresh()}
 }
@@ -803,7 +836,7 @@ function dishCount(w){var n=0;DAYS.forEach(function(d){n+=dayDishes(w.n,d[0]).le
 
 /* ---------------- navigering ---------------- */
 var TITLES={plan:'Planera',shop:'Handla',cook:'Laga',more:'Inställningar'};
-var SUBS={week:'Veckoplan',shop:'Inköpslista',recipes:'Recept'};
+var SUBS={week:'Veckor',shop:'Inköpslista',overview:'Veckor',recipes:'Recept'};
 function go(v,s){
   current=v;if(s)sub=s;
   /* töm de dolda vyerna: färre element att skrolla förbi och inga dubbla id:n */
@@ -844,7 +877,7 @@ function isTyping(){
 function render(){
   var anchor=window._noAnchor?null:grabAnchor();window._noAnchor=false;
   var subtitle='';
-  if(current==='plan'){renderPlan();subtitle=SUBS[sub]+' · vecka '+S.editWeek}
+  if(current==='plan'){renderPlan();subtitle=SUBS[sub]+(sub==='week'?' · '+actLabel():'')}
   else if(current==='shop'){renderShop();subtitle='Butiksordning · '+actLabel()}
   else if(current==='cook'){renderCook();subtitle='Vecka '+cookWeekNo()}
   else{renderMore();subtitle='Data och underhåll'}
@@ -860,10 +893,83 @@ function renderPlan(){
     h+='<button class="'+(sub===k?'on':'')+'" onclick="setSub(\''+k+'\')">'+SUBS[k]+'</button>';
   });
   h+='</div>';
-  h+=(sub==='week'?planWeek():sub==='shop'?planShop():planRecipes());
+  if(sub==='overview')sub='week';
+  h+=(sub==='week'?planWeeks():sub==='shop'?planShop():planRecipes());
   document.getElementById('v-plan').innerHTML=h;
 }
 
+var REC_COLORS=['#FF3D92','#8A3FFC','#00B4CC','#22B864','#F2A20C','#FF6B4A','#3F72F0','#C238C9','#129C8F','#D4851A'];
+function dishKey(x){return x.text?'t:'+x.text.toLowerCase():'r:'+x.recipeId}
+/* hur ofta varje rätt förekommer i rotationen, och en egen färg för dem som återkommer */
+function recurrence(){
+  var cnt={},order=[],col={},ci=0;
+  S.weeks.forEach(function(w){DAYS.forEach(function(d){dayDishes(w.n,d[0]).forEach(function(x){
+    var k=dishKey(x);if(!cnt[k]){cnt[k]=0;order.push(k)}cnt[k]++;
+  })})});
+  order.forEach(function(k){if(cnt[k]>1)col[k]=REC_COLORS[(ci++)%REC_COLORS.length]});
+  return{cnt:cnt,col:col};
+}
+function toggleHl(k){window._hl=window._hl===k?null:k;render()}
+function planWeeks(){
+  var weeks=S.weeks.slice().sort(function(a,b){return a.n-b.n}),rc=recurrence(),hl=window._hl||null,h='';
+  h+='<div class="card" style="padding:12px 14px;margin-bottom:12px"><div class="row">'+
+     '<span class="grow tiny">Handlar för <b>'+actLabel()+'</b> &middot; '+periodText()+
+     (S.periodStart?' &middot; start '+prettyDate(S.periodStart):'')+'</span></div>'+
+     '<div class="tiny" style="margin-top:6px">Tryck på en vecka för att göra den aktiv, kopiera eller tömma den. '+
+     'Tryck på en rätt för att flytta, ändra eller ta bort, och på <b>×N</b> för att se var den återkommer.</div></div>';
+  h+='<div class="row" style="gap:8px;margin-bottom:12px">'+
+     '<button class="btn quiet grow" onclick="addWeek();window.scrollTo(0,0)">+ Ny vecka</button>'+
+     (hl?'<button class="btn grow" onclick="toggleHl(null)">Visa alla rätter</button>':'')+'</div>';
+  h+='<div class="ovwrap"><table class="ov"><thead><tr><th></th>';
+  weeks.forEach(function(w){
+    h+='<th class="'+(isActive(w.n)?'act':'')+'"><button onclick="weekSheet('+w.n+')">Vecka '+w.n+
+       '<span>'+(isActive(w.n)?'aktiv':dishCount(w)+' rätter')+' &#9662;</span></button></th>';
+  });
+  h+='</tr></thead><tbody>';
+  DAYS.forEach(function(d){
+    h+='<tr><th>'+d[1].slice(0,3)+'</th>';
+    weeks.forEach(function(w){
+      var list=dayDishes(w.n,d[0]),tmp=isTemp(w.n,d[0]);
+      h+='<td class="'+(isActive(w.n)?'act ':'')+(tmp?'tmp':'')+'">';
+      list.forEach(function(x,i){
+        var k=dishKey(x),c=rc.col[k],n=rc.cnt[k]||1;
+        var cls='ovd'+(c?' rec':'')+(hl?(hl===k?' hl':' dim'):'');
+        h+='<button class="'+cls+'"'+(c?' style="--rc:'+c+'"':'')+' onclick="editDish('+w.n+',\''+d[0]+'\','+i+')">'+
+           (x.meal&&x.meal!=='middag'?'<i>'+mealLabel(x.meal)+'</i>':'')+
+           '<span class="nm">'+esc(dishName(x))+'</span>'+
+           '<small>'+x.portions+' port'+(x.matlada?' &middot; matlåda':'')+'</small>'+
+           (n>1?'<span class="rcn" onclick="event.stopPropagation();toggleHl(\''+q1(k)+'\')">&times;'+n+'</span>':'')+
+           '</button>';
+      });
+      h+='<button class="ovadd" onclick="addDish('+w.n+',\''+d[0]+'\')">+</button>';
+      if(tmp)h+='<button class="ovtmp" onclick="clearTemp('+w.n+',\''+d[0]+'\')">återställ dagen</button>';
+      h+='</td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+/* allt som rör en hel vecka, samlat på ett ställe */
+function weekSheet(n){
+  var w=wk(n);if(!w)return;
+  var act=isActive(n),first=S.activeWeeks[0],len=S.activeWeeks.length;
+  var h='<h2>Vecka '+n+'</h2><div class="tiny" style="margin:-6px 0 14px">'+dishCount(w)+' rätter</div>';
+  h+='<button class="btn '+(act?'':'quiet ')+'wide" onclick="toggleActive('+n+');weekSheet('+n+')">'+
+     (act?'&#10003; Aktiv &ndash; ingår i inköp och Laga':'Gör aktiv')+'</button>';
+  h+='<div class="card" style="padding:12px 14px;margin:12px 0">'+
+     '<div class="row"><span class="grow tiny">Perioden omfattar</span>'+
+     '<div class="stepper"><button onclick="setWeekSpan('+first+','+Math.max(1,len-1)+');weekSheet('+n+')">&minus;</button>'+
+     '<span>'+len+'</span>'+
+     '<button onclick="setWeekSpan('+first+','+(len+1)+');weekSheet('+n+')">+</button></div>'+
+     '<span class="tiny" style="margin-left:8px">veckor</span></div>'+
+     '<div class="tiny" style="margin-top:8px">'+actLabel()+' &middot; '+periodText()+
+     (S.periodStart?' &middot; start '+prettyDate(S.periodStart):'')+'</div></div>';
+  h+='<button class="btn quiet wide" style="margin-bottom:9px" onclick="sheetClose();dupWeek('+n+')">Kopiera vecka '+n+'</button>'+
+     '<button class="btn quiet wide" style="margin-bottom:9px" onclick="sheetClose();clearWeek('+n+')">Töm veckan</button>'+
+     '<button class="btn danger wide" onclick="sheetClose();delWeek('+n+')">Ta bort veckan</button>';
+  sheetOpen(h);
+}
 function planWeek(){
   var n=S.editWeek,w=wk(n)||S.weeks[0],tot=S.weeks.length,i=S.weeks.indexOf(w),
       act=isActive(w.n),h='';
@@ -1133,7 +1239,8 @@ function editDish(wn,day,i){
     '<div class="field"><label>Måltid</label><select id="m_m">'+mealOpts(d.meal)+'</select></div>'+
     '<div class="field"><label>Portioner</label><input type="number" id="m_p" min="1" max="30" value="'+d.portions+'"></div>'+
     '<div class="field"><label class="row" style="gap:9px"><input type="checkbox" id="m_b" style="width:auto"'+(d.matlada?' checked':'')+'> Extra för matlåda</label></div>'+
-    '<button class="btn wide" onclick="applyEdit('+wn+',\''+day+'\','+i+')">Spara</button>');
+    '<button class="btn wide" onclick="applyEdit('+wn+',\''+day+'\','+i+')">Spara</button>'+
+    '<button class="btn danger wide" style="margin-top:9px" onclick="delDish('+wn+',\''+day+'\','+i+')">Ta bort rätten</button>');
 }
 function applyEdit(wn,day,i){
   var arr=dayDishes(wn,day),d=arr[i];if(!d)return;
@@ -1935,6 +2042,7 @@ function planShop(){
   h+=poolBlock();
   h+='<div class="row" style="gap:9px;margin-top:16px">'+
      '<button class="btn quiet wide" onclick="clearTicks()">Nollställ bockar och antal</button></div>'+
+     trashButton()+
      '<div class="tiny" style="margin-top:7px">Nollställ tar bort alla bockar och de antal du ändrat, '+
      'så listan går tillbaka till vad veckans recept kräver. Butiker och färskmärkning rörs inte.</div>';
   return h;
@@ -1959,6 +2067,7 @@ function renderShop(){
   h+='<div class="row" style="gap:9px;margin-top:16px">'+
      '<button class="btn quiet grow" onclick="S.showDone=!S.showDone;save();render()">'+(S.showDone?'Visa bara det som ska handlas':'Visa hela listan')+'</button>'+
      '<button class="btn quiet grow" onclick="checkAll()">Bocka av allt</button></div>'+
+     trashButton()+
      '<button class="btn quiet wide" style="margin-top:9px" onclick="clearTicks()">Nollställ bockar och antal</button>'+
      '<div class="tiny" style="margin-top:7px">Nollställ tar bort alla bockar och ändrade antal. '+
      'Butikstillhörighet, färskmärkning och butiksordning ligger kvar.</div>';
@@ -2122,12 +2231,86 @@ function addExtra(inputId,shop){
 function quickAdd(n,shop){S.extra.push({id:uid(),name:n,shop:shop});setShop(n,shop);save();render();
   toast(n+' → '+(shop==='fram'?'Fram':'Willys'))}
 function delExtra(id){S.extra=S.extra.filter(function(e){return e.id!==id});delete S.checked['f:'+id];save();render()}
+function shopLabel(s){return s==='fram'?'Fram':s==='willys'?'Willys':'Annan butik'}
+/* fråga först – krysset sitter för nära allt annat */
 function removeRow(key,shop){
   var it=(window._rows||{})[key];if(!it)return;
-  if(it.standing)delStanding(it.shop||shop,it.sid);
-  else if(it.manual)delExtra(it.manual);
-  else{S.approved[key]=false;delete S.checked[key];delete S.qty[key];save();render();
-    toast(it.n+' borttagen ur listan');}
+  var what=it.standing?'Varan tas bort ur '+shopLabel(it.shop||shop)+'-listan.'
+          :it.manual?'Varan tas bort ur listan.'
+          :'Varan kommer från ett recept och tas bort ur den här inköpsomgången.';
+  sheetOpen('<h2>Ta bort '+esc(it.n)+'?</h2>'+
+    '<div class="tiny" style="margin:-6px 0 16px">'+what+' Du kan ångra och se allt borttaget längst ner i listan.</div>'+
+    '<button class="btn danger wide" style="margin-bottom:9px" onclick="doRemove(\''+q1(key)+'\',\''+shop+'\')">Ta bort</button>'+
+    '<button class="btn quiet wide" onclick="sheetClose()">Avbryt</button>');
+}
+var _tn=0;
+function doRemove(key,shop){
+  var it=(window._rows||{})[key];if(!it)return;
+  var e={t:Date.now()*100+(_tn++%100),n:it.n,shop:it.shop||shop,key:key};
+  if(it.standing){
+    var L=standingList(it.shop||shop),idx=-1;
+    for(var i=0;i<L.length;i++)if(L[i].id===it.sid){idx=i;break}
+    if(idx<0)return;
+    e.kind='standing';e.obj=L[idx];e.idx=idx;e.checked=S.checked[key];e.qty=S.qty[key];
+    L.splice(idx,1);
+  }else if(it.manual){
+    var j=-1;for(var m=0;m<S.extra.length;m++)if(S.extra[m].id===it.manual){j=m;break}
+    if(j<0)return;
+    e.kind='manual';e.obj=S.extra[j];e.checked=S.checked[key];
+    S.extra.splice(j,1);
+  }else{
+    e.kind='recipe';e.base=String(key).replace(/~sen$/,'');e.prev=S.approved[e.base];
+    S.approved[e.base]=false;
+  }
+  delete S.checked[key];delete S.qty[key];
+  S.trash=S.trash||[];S.trash.unshift(e);if(S.trash.length>60)S.trash.length=60;
+  save();sheetClose();render();undoBar(it.n+' borttagen',e.t);
+}
+function restoreTrash(t){
+  var tr=S.trash||[],i=-1;
+  for(var k=0;k<tr.length;k++)if(tr[k].t===t){i=k;break}
+  if(i<0)return;
+  var e=tr[i];
+  if(e.kind==='standing'){
+    var L=standingList(e.shop);L.splice(Math.min(e.idx,L.length),0,e.obj);
+    if(e.checked!==undefined)S.checked[e.key]=e.checked;
+    if(e.qty!==undefined)S.qty[e.key]=e.qty;
+  }else if(e.kind==='manual'){
+    S.extra.push(e.obj);if(e.checked!==undefined)S.checked[e.key]=e.checked;
+  }else if(e.kind==='recipe'){
+    if(e.prev===undefined)delete S.approved[e.base];else S.approved[e.base]=e.prev;
+  }
+  tr.splice(i,1);save();hideUndo();render();toast(e.n+' är tillbaka');
+}
+function undoBar(text,t){
+  var b=document.getElementById('undo');
+  b.innerHTML='<span>'+esc(text)+'</span><button onclick="restoreTrash('+t+')">Ångra</button>';
+  b.className='undo on';
+  clearTimeout(window._ut);window._ut=setTimeout(hideUndo,6000);
+}
+function hideUndo(){var b=document.getElementById('undo');if(b)b.className='undo'}
+function ago(t){
+  var m=Math.round((Date.now()-t/100)/60000);
+  if(m<1)return 'nyss';if(m<60)return m+' min sedan';
+  var h=Math.round(m/60);if(h<24)return h+' tim sedan';
+  return Math.round(h/24)+' dagar sedan';
+}
+function trashSheet(){
+  var tr=S.trash||[],h='<h2>Borttaget</h2>';
+  if(!tr.length){sheetOpen(h+'<div class="empty">Inget är borttaget.</div>');return}
+  h+='<div class="tiny" style="margin:-6px 0 12px">De senaste '+tr.length+'. Tryck Återställ för att lägga tillbaka.</div>'+
+     '<div class="card"><ul class="slist">';
+  tr.forEach(function(e){
+    h+='<li><span class="grow"><b style="font-weight:650">'+esc(e.n)+'</b>'+
+       '<div class="src">'+shopLabel(e.shop)+(e.kind==='recipe'?' &middot; från recept':'')+' &middot; '+ago(e.t)+'</div></span>'+
+       '<button class="mv" onclick="restoreTrash('+e.t+');trashSheet()">Återställ</button></li>';
+  });
+  h+='</ul></div><button class="btn quiet wide" style="margin-top:12px" onclick="if(confirm(\'Tömma listan över borttaget? Det går inte att ångra.\')){S.trash=[];save();trashSheet()}">Töm listan</button>';
+  sheetOpen(h);
+}
+function trashButton(){
+  var n=(S.trash||[]).length;
+  return n?'<button class="btn quiet wide" style="margin-top:9px" onclick="trashSheet()">Borttaget ('+n+')</button>':'';
 }
 function delStanding(shop,id){
   if(shop==='fram'){S.framList=S.framList.filter(function(x){return x.id!==id});delete S.checked['a:'+id]}
@@ -2177,7 +2360,10 @@ function renderCook(){
      '<button onclick="port('+t+',1)">+</button></div></div>'+
      '<button class="btn '+(isCooked(cookWeekNo(),day,dish)?'':'quiet ')+'wide" style="margin-top:12px" '+
      'onclick="toggleCooked('+cookWeekNo()+',\''+day+'\','+t+')">'+
-     (isCooked(cookWeekNo(),day,dish)?'&#10003; Lagad':'Markera som lagad')+'</button></div>';
+     (isCooked(cookWeekNo(),day,dish)?'&#10003; Lagad':'Markera som lagad')+'</button>'+
+     '<div class="row" style="gap:8px;margin-top:9px">'+
+     (r?'<button class="btn quiet grow" onclick="openRecipe(\''+r.id+'\')">Ändra receptet</button>':'')+
+     '<button class="btn quiet grow" onclick="editDish('+cookWeekNo()+',\''+day+'\','+t+')">Flytta rätten</button></div></div>';
   if(!r||!r.ing.length)h+='<div class="empty">Inga ingredienser sparade för den här rätten.</div>';
   else{
     h+='<div class="card"><ul class="ing">';
@@ -2331,7 +2517,7 @@ function load2(d){
   if(!d.weeks&&d.std)d.weeks=d.std;
   if(!d.weeks)d.weeks=SEED_STD();
   if(!d.activeWeeks)d.activeWeeks=d.activeWeek?[d.activeWeek]:[1];
-  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.freshDays)d.freshDays={};if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
+  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.freshDays)d.freshDays={};if(!d.trash)d.trash=[];if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
   if(!d.editWeek)d.editWeek=d.activeWeeks[0]||1;
   if(!d.extra)d.extra=[];if(!d.checked)d.checked={};if(!d.approved)d.approved={};
   if(!d.shopOf)d.shopOf=seedShops();
