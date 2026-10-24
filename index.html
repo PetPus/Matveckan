@@ -60,7 +60,7 @@ html{background:#FFF4FB}
 html[data-view="shop"]{background:#F2FDFB}
 html[data-view="cook"]{background:#FFF8EE}
 html[data-view="more"]{background:#FFF4FB}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html,body{margin:0;padding:0}
 body{
   color:var(--ink);
@@ -336,11 +336,13 @@ body[data-rail="1"] main{padding-right:40px}
   background:rgba(255,253,254,.98);border-bottom:1px solid var(--edge);box-shadow:0 10px 26px -14px rgba(60,25,90,.6);
   max-height:70vh;overflow:auto}
 .search.on{display:block}
+#sq{font-size:19px;padding:15px 16px;border-radius:16px;font-weight:600}
+.search .mv{font-size:14px;padding:12px 14px}
 #sres{margin-top:8px}
 .shit{display:flex;width:100%;justify-content:space-between;align-items:baseline;gap:10px;text-align:left;
-  padding:11px 6px;border-top:1px solid var(--hair)}
+  padding:15px 8px;border-top:1px solid var(--hair);font-size:17px}
 .shit b{font-weight:650}
-.shit span{font-size:12px;color:var(--muted);white-space:nowrap}
+.shit span{font-size:13.5px;color:var(--muted);white-space:nowrap}
 li.flash{animation:flash 1.6s ease}
 @keyframes flash{0%,40%{background:var(--butter)}100%{background:transparent}}
 .undo{position:fixed;left:12px;right:12px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:61;display:none;
@@ -419,7 +421,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='47';
+var APP_VERSION='48';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -1567,11 +1569,21 @@ function groups(){
     var m=map[k],a=S.approved[k],uses=m.uses||[],items=[];
     if(a===undefined)a=shopFor(m.n)||undefined;
     /* färskvara som behövs både tidigt och sent: dela upp mängden */
-    var lim=freshDays(m.n)-1,early=uses.filter(function(x){return x.off<lim}),
-        late=uses.filter(function(x){return x.off>=lim});
-    if(isFresh(m.n)&&S.later[k]===undefined&&early.length&&late.length){
-      items.push(mkItem(k,m,early,{forceNow:true}));
-      items.push(mkItem(k+'~sen',m,late,{forceLate:true,lateSplit:true,baseKey:k}));
+    var fd=freshDays(m.n),lim=fd-1,early=uses.filter(function(x){return x.off<lim}),
+        late=uses.filter(function(x){return x.off>=lim}).sort(function(a,b){return a.off-b.off});
+    if(isFresh(m.n)&&S.later[k]===undefined&&late.length){
+      /* det som inte ryms i huvudhandlingen delas i omgångar: allt som behövs inom
+         hållbarheten från omgångens första dag köps samtidigt */
+      var buckets=[];
+      late.forEach(function(x){
+        var b=buckets[buckets.length-1];
+        if(b&&x.off<=b.start+lim)b.uses.push(x);else buckets.push({start:x.off,uses:[x]});
+      });
+      if(early.length)items.push(mkItem(k,m,early,{forceNow:true}));
+      buckets.forEach(function(b,i){
+        var key=(i===0&&!early.length)?k:k+'~sen'+(i===0?'':i+1);
+        items.push(mkItem(key,m,b.uses,{forceLate:true,lateSplit:true,baseKey:k,round:i+1,rounds:buckets.length}));
+      });
     }else items.push(mkItem(k,m,uses,{}));
     items.forEach(function(it){
       if(a==='fram')fram.push(it);
@@ -1692,7 +1704,7 @@ function mergeByName(list){
   var seen={},out=[];
   list.forEach(function(it){
     /* sen del av en delad färskvara får aldrig slås ihop med huvudlistans rad */
-    var k=normName(it.n)+(it.lateSplit?'~sen':''),prev=seen[k];
+    var k=normName(it.n)+(it.lateSplit?'~'+it.key:''),prev=seen[k];
     if(!prev){seen[k]=it;if(it.parts)it.parts=it.parts.slice();out.push(it);return}
     /* samma vara två gånger: behåll raden, slå ihop mängd och receptmärkning */
     if(it.parts)prev.parts=(prev.parts||[]).concat(it.parts);
@@ -1931,7 +1943,7 @@ function scrollBottom(){
 function openSearch(){
   var b=document.getElementById('search');b.className='search on';
   var q=document.getElementById('sq');q.value='';document.getElementById('sres').innerHTML='';
-  setTimeout(function(){q.focus()},30);
+  q.focus();   /* måste ske i samma tryck, annars öppnar iOS inget tangentbord */
 }
 function closeSearch(){document.getElementById('search').className='search';var q=document.getElementById('sq');if(q.blur)q.blur()}
 function searchRun(){
@@ -2074,6 +2086,7 @@ function remindList(){
     .concat(splitLater(willysRows(g)).late.map(function(it){it._s='Willys';return it}))
     .concat(splitLater(otherRows(g)).late.map(function(it){it._s=storeOf(it.n);return it}));
   var base=S.periodStart?new Date(S.periodStart+'T12:00:00'):nextStart(),by={},out=[];
+  all=all.filter(function(it){return !isOn(it)});   /* redan handlat: ingen påminnelse */
   all.forEach(function(it){
     var need=new Date(base.getTime());need.setDate(need.getDate()+it.off);
     var warn=new Date(need.getTime());warn.setDate(warn.getDate()-remindDays());
@@ -2143,7 +2156,9 @@ function icsDownload(){
 }
 function refreshReminders(){try{S.reminders=reminderPlan()}catch(e){}}
 function laterCount(g){
-  return splitLater(framRows(g)).late.length+splitLater(willysRows(g)).late.length+splitLater(otherRows(g)).late.length;
+  var n=0,f=function(it){if(!isOn(it))n++};
+  splitLater(framRows(g)).late.forEach(f);splitLater(willysRows(g)).late.forEach(f);splitLater(otherRows(g)).late.forEach(f);
+  return n;
 }
 function laterBanner(g){
   var n=laterCount(g);
@@ -2157,6 +2172,7 @@ function laterBlock(g,storeOrder){
       .map(function(it){it._s='Fram';return it})
       .concat(splitLater(willysRows(g)).late.map(function(it){it._s='Willys';return it}))
       .concat(splitLater(otherRows(g)).late.map(function(it){it._s=storeOf(it.n);return it}));
+  all=all.filter(function(it){return !storeOrder||S.showDone||!isOn(it)});
   if(!all.length)return '';
   all.sort(function(a,b){return (a.off-b.off)||bySv(a,b)});
   var h='<div id="later"></div><div class="sec-title" id="sec-later"><span>Komplettering &middot; handlas senare</span>'+
@@ -2171,6 +2187,7 @@ function laterBlock(g,storeOrder){
        '<span class="grow txt"><b style="font-weight:600">'+esc(it.n)+'</b> '+
        (qtyOf(it)!=null?'<span class="qty">'+fmtQ(qtyOf(it))+' '+esc(unitOf(it))+'</span>':'')+
        '<span class="pill late">'+offsetLabel(it.off)+'</span>'+
+       (it.rounds>1?'<span class="pill">omgång '+it.round+' av '+it.rounds+'</span>':'')+
        '<div class="src">'+esc(it._s)+(it.src?' &middot; '+esc(it.src):'')+'</div></span>'+
        '<button class="mv" onclick="setLater(\''+q1(it.key)+'\',false)">handla nu</button></li>';
   });
@@ -2276,8 +2293,8 @@ function checkAll(){
   framRows(g).concat(willysRows(g)).concat(otherRows(g)).forEach(function(it){S.checked[it.key]=true});
   save();render();toast('Allt avbockat');
 }
-function setLater(k,v){k=String(k).replace(/~sen$/,'');S.later[k]=v;save();render();toast(v?'Flyttad till komplettering':'Flyttad till veckans inköp')}
-function approve(k,shop,name){k=String(k).replace(/~sen$/,'');S.approved[k]=shop;if(shop&&name)setShop(name,shop);save();render()}
+function setLater(k,v){k=String(k).replace(/~sen\d*$/,'');S.later[k]=v;save();render();toast(v?'Flyttad till komplettering':'Flyttad till veckans inköp')}
+function approve(k,shop,name){k=String(k).replace(/~sen\d*$/,'');S.approved[k]=shop;if(shop&&name)setShop(name,shop);save();render()}
 function approveAll(){groups().pending.forEach(function(it){S.approved[it.key]=it.hint||'fram'});
   save();render();toast('Fördelade – kolla att butikerna stämmer')}
 function unskip(){groups().skipped.forEach(function(it){delete S.approved[it.key]});save();render();toast('Tillbaka till fördelning')}
@@ -2433,7 +2450,7 @@ function doRemove(key,shop){
     e.kind='manual';e.obj=S.extra[j];e.checked=S.checked[key];
     S.extra.splice(j,1);
   }else{
-    e.kind='recipe';e.base=String(key).replace(/~sen$/,'');e.prev=S.approved[e.base];
+    e.kind='recipe';e.base=String(key).replace(/~sen\d*$/,'');e.prev=S.approved[e.base];
     S.approved[e.base]=false;
   }
   delete S.checked[key];delete S.qty[key];
