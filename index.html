@@ -215,6 +215,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .src .sug{font-weight:800;color:var(--tdeep);font-family:var(--rounded)}
 .qrow{display:flex;align-items:center;gap:8px;margin-top:9px}
 .srcbtn{display:block;width:100%;text-align:left;background:none;border:0;padding:0;font:inherit;cursor:pointer}
+.nmrow{display:flex;align-items:baseline;gap:10px}
+.nmt{font-weight:650;flex:1;min-width:0}
+.buy{font-family:var(--rounded);font-size:17px;font-weight:800;color:var(--ink);white-space:nowrap;letter-spacing:-.01em}
+.buy.mine{color:var(--tdeep)}
+.done .buy{color:#B9AECB;text-decoration:line-through;font-weight:600}
+.src.srcbtn,.src{font-weight:500}
+.src .mvd{font-weight:800;color:var(--blush-deep)}
+.src.snz{font-weight:700;color:var(--butter-deep)}
+.qbox.lite{opacity:.8}
+.qbox.lite .qnum{min-width:36px;font-size:14px;color:var(--muted)}
 .src .more{font-weight:700;color:var(--tdeep);white-space:nowrap}
 .src .sug.none{font-weight:600;color:var(--muted);font-style:italic;font-family:inherit}
 
@@ -293,7 +303,11 @@ body[data-rail="1"] main{padding-right:40px}
   border:1px solid var(--edge);box-shadow:0 10px 24px -12px rgba(60,25,90,.55)}
 .jump:active{transform:scale(.95)}
 .jump.round{width:44px;height:44px;padding:0;display:grid;place-items:center;font-size:18px}
-.fab{position:relative;z-index:35;display:none;
+.jump.find{width:52px;height:52px;border:0;background:linear-gradient(135deg,var(--sun),var(--t1));
+  box-shadow:0 10px 22px -10px var(--tglow)}
+.jump.find svg{width:24px;height:24px;stroke:#fff;stroke-width:2.6;fill:none;stroke-linecap:round}
+.mv.miss{color:var(--blush-deep)}
+.fab{position:relative;z-index:35;display:none;padding:11px 14px!important;font-size:13px!important;
   font-family:var(--rounded);color:#fff;border-radius:999px;padding:14px 22px;font-size:14.5px;font-weight:800;
   background:linear-gradient(135deg,var(--pink),#E01E5A);box-shadow:0 14px 30px -10px rgba(224,30,90,.95)}
 .fab.on{display:block}
@@ -318,6 +332,17 @@ body[data-rail="1"] main{padding-right:40px}
 .field{margin-bottom:17px}
 .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px;font-weight:600}
 
+.search{position:fixed;left:0;right:0;top:0;z-index:62;display:none;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  background:rgba(255,253,254,.98);border-bottom:1px solid var(--edge);box-shadow:0 10px 26px -14px rgba(60,25,90,.6);
+  max-height:70vh;overflow:auto}
+.search.on{display:block}
+#sres{margin-top:8px}
+.shit{display:flex;width:100%;justify-content:space-between;align-items:baseline;gap:10px;text-align:left;
+  padding:11px 6px;border-top:1px solid var(--hair)}
+.shit b{font-weight:650}
+.shit span{font-size:12px;color:var(--muted);white-space:nowrap}
+li.flash{animation:flash 1.6s ease}
+@keyframes flash{0%,40%{background:var(--butter)}100%{background:transparent}}
 .undo{position:fixed;left:12px;right:12px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:61;display:none;
   align-items:center;gap:12px;padding:12px 12px 12px 18px;border-radius:16px;color:#fff;
   background:linear-gradient(135deg,var(--t2),var(--t1));box-shadow:0 14px 30px -12px var(--tglow)}
@@ -376,6 +401,7 @@ body[data-rail="1"] main{padding-right:40px}
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"></div>
 <div class="fabbar" id="fabbar">
+  <button class="jump round find" onclick="openSearch()" aria-label="Sök"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></button>
   <button class="jump round" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Överst">&#8593;</button>
   <button class="jump" onclick="jumpTo('sec-fram')">Fram</button>
   <button class="jump" onclick="jumpTo('sec-willys')">Willys</button>
@@ -383,6 +409,7 @@ body[data-rail="1"] main{padding-right:40px}
   <button class="fab" id="fab" onclick="toggleEditAll()"></button>
 </div>
 <div class="rail" id="rail"></div>
+<div class="search" id="search"><div class="row" style="gap:8px"><input type="search" id="sq" placeholder="Sök vara i alla listor" autocomplete="off" oninput="searchRun()" style="flex:1"><button class="mv" onclick="closeSearch()">Stäng</button></div><div id="sres"></div></div>
 <div class="undo" id="undo"></div>
 <div class="toast" id="toast"></div>
 <datalist id="ingnames"></datalist>
@@ -392,7 +419,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='45';
+var APP_VERSION='47';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -651,7 +678,7 @@ function fresh(){
    extra:[],checked:{},approved:{},later:{},shopOf:seedShops(),editing:false,cookWeek:null,
    ordFram:SEED_FRAM.map(normName),
    ordWillys:SEED_GRUND.map(normName),
-   startDay:'wed',endDay:'tue',trash:[],temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
+   startDay:'wed',endDay:'tue',trash:[],tmpMove:{},snooze:{},temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
 }
 function load(){
   var raw=store.get(KEY);
@@ -674,13 +701,34 @@ function load(){
     if(!S.ordWillys)S.ordWillys=SEED_GRUND.map(normName);
     if(S.editing===undefined)S.editing=false;
     if(!S.startDay)S.startDay='wed';if(!S.endDay)S.endDay='tue';if(!S.temp)S.temp={};
-    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.trash)S.trash=[];if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
+    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.trash)S.trash=[];if(!S.tmpMove)S.tmpMove={};if(!S.snooze)S.snooze={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
     if(!S.units)S.units=[];if(!S.unitOf)S.unitOf={};
   }catch(e){S=fresh()}
 }
 function save(){store.set(KEY,JSON.stringify(S))}
 /* Engångsuppdatering av butiksordningen. Rör ingenting annat:
    färskmärkning, butikstillhörighet, bockar, antal och veckor lämnas orörda. */
+var POOL_STAMP='vanliga-varor-2026-10';
+var POOL_SKIP=['dadlar','havremjölk','jordnötssmör','kaffefilter','korvbröd','kvarg','kycklingfilé','kycklingfärs',
+  'majs på burk','makrill i tomatsås','oliver','persilja färsk','quinoa','rostad lök','sambal','solroskärnor',
+  'strösocker','tahini','äpplen','ärtor frysta','ketchup','kryddor lösvikt'];
+/* engång: listan Vanliga varor tas bort, det som inte redan finns läggs i sin butik */
+function migratePool(){
+  if(S.poolStamp===POOL_STAMP)return;
+  var have={};
+  S.framList.concat(S.grund).concat(S.otherList).forEach(function(x){have[normName(x.name)]=1});
+  SNABB.forEach(function(n){
+    var k=normName(n);
+    if(have[k]||POOL_SKIP.indexOf(k)>-1)return;
+    if(k==='dill färsk'){S.alias['dill färsk']='färsk dill';return}
+    var sh=shopFor(n);
+    if(sh==='fram')S.framList.push({id:uid(),name:n});
+    else if(sh==='other')S.otherList.push({id:uid(),name:n,store:storeOf(n)});
+    else{S.grund.push({id:uid(),name:n});setShop(n,'willys')}
+    have[k]=1;
+  });
+  S.poolStamp=POOL_STAMP;save();
+}
 var ORDER_STAMP='butiksordning-2026-09-29b';
 function applyNewOrder(){
   if(S.orderStamp===ORDER_STAMP)return;
@@ -875,6 +923,7 @@ function isTyping(){
   return !!(e&&(e.tagName==='INPUT'||e.tagName==='TEXTAREA'||e.tagName==='SELECT'));
 }
 function render(){
+  if(S.snooze&&expireSnooze())save();
   var anchor=window._noAnchor?null:grabAnchor();window._noAnchor=false;
   var subtitle='';
   if(current==='plan'){renderPlan();subtitle=SUBS[sub]+(sub==='week'?' · '+actLabel():'')}
@@ -1039,7 +1088,7 @@ function stepWeek(d){
 /* ny period: bockar, "finns hemma" och kompletteringsval gäller bara den period de gjordes i.
    Butiksvalen ligger kvar – en vara du fördelat en gång behöver inte fördelas igen. */
 function resetPeriod(){
-  S.checked={};S.later={};S.cooked={};
+  S.checked={};S.later={};S.cooked={};S.tmpMove={};S.snooze={};
   for(var k in S.approved)if(S.approved[k]===false)delete S.approved[k];
 }
 function nextStartDate(){
@@ -1658,10 +1707,69 @@ function mergeByName(list){
   out.forEach(applyParts);
   return out;
 }
-function willysRows(g){
+function base_willysRows(g){
   return mergeByName(
     S.grund.map(function(gd){var c=splitCount(gd.name);return{key:'g:'+gd.id,n:c.name,def:c.def,u:'',q:null,src:'',standing:true,sid:gd.id,shop:'willys'}})
            .concat(g.willys));
+}
+/* tillfällig flytt: varan handlas i en annan butik bara den här perioden */
+function allRows(g){
+  if(g._all)return g._all;
+  var b={fram:base_framRows(g),willys:base_willysRows(g),other:base_otherRows(g)},
+      out={fram:[],willys:[],other:[]},mv=S.tmpMove||{};
+  ['fram','willys','other'].forEach(function(sh){b[sh].forEach(function(it){
+    var m=mv[it.key];
+    if(m&&m.shop!==sh){it.movedFrom=sh;it.movedStore=m.store||'';out[m.shop].push(it)}
+    else out[sh].push(it);
+  })});
+  g._all=out;return out;
+}
+function framRows(g){return allRows(g).fram}
+function willysRows(g){return allRows(g).willys}
+function otherRows(g){return allRows(g).other}
+function snoozeText(t){
+  var d=new Date(t),now=new Date(),tm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+  var tom=new Date(now);tom.setDate(now.getDate()+1);
+  if(d.toDateString()===now.toDateString())return 'idag '+tm;
+  if(d.toDateString()===tom.toDateString())return 'i morgon '+tm;
+  return prettyDate(iso(d))+' '+tm;
+}
+function expireSnooze(){
+  var ch=false,now=Date.now();
+  for(var k in (S.snooze||{}))if(S.snooze[k]<=now){delete S.snooze[k];S.checked[k]=false;ch=true}
+  return ch;
+}
+function rowSheet(key,shop){
+  var it=(window._rows||{})[key];if(!it)return;
+  var h='<h2>'+esc(it.n)+'</h2>'+
+    (buyText(it)?'<div class="tiny" style="margin:-6px 0 14px">'+esc(buyText(it))+' &middot; '+shopLabel(shop)+'</div>':'')+
+    '<div class="sec-title" style="margin-top:4px">Fanns inte här – köp i stället på</div>'+
+    '<div class="row" style="gap:8px;margin-bottom:12px">';
+  ['fram','willys'].forEach(function(sh){
+    var here=(shop===sh&&!it.movedFrom)||(it.movedFrom&&shop===sh);
+    h+='<button class="btn grow'+(here?' quiet':'')+'"'+(here?' disabled style="opacity:.4"':'')+
+       ' onclick="moveTmp(\''+q1(key)+'\',\''+sh+'\',\'\')">'+shopLabel(sh)+'</button>';
+  });
+  h+='</div><div class="tiny" style="margin-bottom:6px">Andra butiker</div><div class="chips" style="margin-bottom:6px">';
+  knownStores().forEach(function(b){
+    if(shop==='other'&&b===(it.movedStore||storeOf(it.n)))return;
+    h+='<button class="chip" onclick="moveTmp(\''+q1(key)+'\',\'other\',\''+q1(b)+'\')">'+esc(b)+'</button>';
+  });
+  h+='</div><div class="tiny" style="margin-bottom:16px">Bara den här gången. Varan går tillbaka till sin vanliga butik när en ny period börjar.</div>'+
+    '<button class="btn quiet wide" style="margin-bottom:9px" onclick="snoozeRow(\''+q1(key)+'\')">Spara till nästa inhandling</button>'+
+    '<div class="tiny" style="margin:-4px 0 14px">Bockas av i 24 timmar och dyker sedan upp igen.</div>'+
+    (it.movedFrom?'<button class="btn quiet wide" style="margin-bottom:9px" onclick="unmoveTmp(\''+q1(key)+'\')">Tillbaka till '+shopLabel(it.movedFrom)+'</button>':'')+
+    '<button class="btn quiet wide" onclick="qtyEdit(\''+q1(key)+'\')">Ändra antal</button>';
+  sheetOpen(h);
+}
+function moveTmp(key,shop,store){
+  S.tmpMove=S.tmpMove||{};S.tmpMove[key]={shop:shop,store:store};
+  save();sheetClose();render();toast('Flyttad till '+(shop==='other'?store:shopLabel(shop))+' den här gången');
+}
+function unmoveTmp(key){delete S.tmpMove[key];save();sheetClose();render();toast('Tillbaka')}
+function snoozeRow(key){
+  S.snooze=S.snooze||{};S.snooze[key]=Date.now()+24*3600*1000;
+  save();sheetClose();render();toast('Tillbaka '+snoozeText(S.snooze[key]));
 }
 function storeOf(n){return S.storeName[normName(n)]||'Övrigt'}
 function knownStores(){
@@ -1671,7 +1779,7 @@ function knownStores(){
   out.sort(function(a,b){return a.localeCompare(b,'sv')});
   return out;
 }
-function otherRows(g){
+function base_otherRows(g){
   return mergeByName(
     S.otherList.map(function(o){var c=splitCount(o.name);return{key:'o:'+o.id,n:c.name,def:c.def,u:'',q:null,src:'',standing:true,sid:o.id,shop:'other'}})
                .concat(g.other));
@@ -1682,7 +1790,7 @@ function otherBlock(g,storeOrder){
   var vis=list.filter(function(it){window._rows=window._rows||{};window._rows[it.key]=it;
     return (!storeOrder||S.showDone||edit||!isOn(it))&&(storeOrder||matchQ(it))});
   vis.forEach(function(it){
-    var b=storeOf(it.n);
+    var b=it.movedStore||storeOf(it.n);
     if(!by[b]){by[b]=[];order.push(b)}
     by[b].push(it);
   });
@@ -1701,7 +1809,7 @@ function otherBlock(g,storeOrder){
      '<button class="btn" onclick="addExtra(\'addO\',\'other\')">Lägg till</button></div>';
   return h;
 }
-function framRows(g){
+function base_framRows(g){
   return mergeByName(
     S.framList.map(function(fd){var c=splitCount(fd.name);return{key:'a:'+fd.id,n:c.name,def:c.def,u:'',q:null,src:'',standing:true,sid:fd.id,shop:'fram'}})
               .concat(g.fram));
@@ -1718,7 +1826,7 @@ function pendingBlock(g){
        (it.q!=null?'<span class="qty">'+fmtQ(it.q)+' '+esc(it.u)+'</span>':'')+
        (autoLater(it)?'<span class="pill late">håller '+freshDays(it.n)+' dagar &middot; behövs '+offsetLabel(it.off)+'</span>':'')+
        '<div class="src">'+esc(it.src)+(autoLater(it)?' &middot; föreslås som komplettering':'')+'</div></span>'+
-       '<button class="x" onclick="approve(\''+q1(it.key)+'\',false)">&times;</button></div>'+
+       '<button class="mv" onclick="approve(\''+q1(it.key)+'\',false)">Har hemma</button></div>'+
        '<div class="row" style="gap:6px">'+
        '<button class="mv grow'+(it.hint==='fram'?' hint':'')+'" onclick="approve(\''+q1(it.key)+'\',\'fram\',\''+q1(it.n)+'\')">Fram</button>'+
        '<button class="mv grow'+(it.hint==='willys'?' hint':'')+'" onclick="approve(\''+q1(it.key)+'\',\'willys\',\''+q1(it.n)+'\')">Willys</button>'+
@@ -1746,37 +1854,47 @@ function usesSheet(key){
   h+='</ul></div>';
   sheetOpen(h);
 }
+function buyText(it){
+  var q=qtyOf(it),uu=unitOf(it);
+  if(it.mixed&&S.qty[it.key]===undefined&&S.unitOf[it.key]===undefined)return it.qText;
+  if(q==null||q===0)return '';
+  return fmtQ(q)+(uu?' '+uu:(COUNT_UNITS.indexOf(uu||'')>-1?' st':''));
+}
+function userChanged(it){return S.qty[it.key]!==undefined||S.unitOf[it.key]!==undefined}
 function srcLine(it){
-  if(!it.src)return '';
-  if(!it.auto)return '<div class="src">'+esc(it.src)+'</div>';
-  var sug=it.q!=null
-    ? '<b class="sug">Recept: '+(it.qText?esc(it.qText):fmtQ(roundBuy(it.q,it.u))+(it.u?' '+esc(it.u):''))+'</b>'
-    : '<b class="sug none">Ingen mängd i receptet</b>';
+  var moved=it.movedFrom?'<span class="mvd">flyttad från '+shopLabel(it.movedFrom)+'</span> ':'';
+  if(!it.auto){
+    if(userChanged(it))return '<div class="src">'+moved+'ditt antal</div>';
+    return moved?'<div class="src">'+moved+'</div>':(it.src?'<div class="src">'+esc(it.src)+'</div>':'');
+  }
+  var rq=it.q!=null?(it.qText||fmtQ(roundBuy(it.q,it.u))+(it.u?' '+it.u:' st')):'';
   var names=it.src.split(', '),list=names.length>2
-    ? esc(names.slice(0,2).join(', '))+' <span class="more">+'+(names.length-2)+' rätter</span>'
+    ? esc(names.slice(0,2).join(', '))+' +'+(names.length-2)
     : esc(it.src);
-  return '<button class="src srcbtn" onclick="usesSheet(\''+q1(it.key)+'\')">'+sug+' &middot; '+list+
-    ' <span class="more">&rsaquo;</span></button>';
+  var head=userChanged(it)
+    ? 'ditt antal &middot; recepten föreslog '+(rq?esc(rq):'ingen mängd')
+    : (rq?'enligt recept':'ingen mängd i receptet')+' &middot; '+list;
+  return '<button class="src srcbtn" onclick="usesSheet(\''+q1(it.key)+'\')">'+moved+head+' &rsaquo;</button>';
 }
 function itemRow(it,shop,storeOrder){
   window._rows=window._rows||{};window._rows[it.key]=it;
   var on=isOn(it),edit=!!S.editing;
   var q=qtyOf(it),uu=unitOf(it),st=stepFor(uu);
-  var qbox='<div class="qbox"><button onclick="bumpQty(\''+q1(it.key)+'\',-'+st+')">&minus;</button>'+
-    '<button class="qnum" onclick="qtyEdit(\''+q1(it.key)+'\')">'+
-      /* blandade enheter visas som de är, utan omräkning, tills du ändrar själv */
-      (it.mixed&&S.qty[it.key]===undefined&&S.unitOf[it.key]===undefined
-        ? esc(it.qText)
-        : (q==null||q===0?'&ndash;':fmtQ(q)+(uu?' '+esc(uu):'')))+'</button>'+
+  /* reglaget är bara för att ändra – siffran att köpa står bredvid namnet */
+  var qbox='<div class="qbox lite"><button onclick="bumpQty(\''+q1(it.key)+'\',-'+st+')">&minus;</button>'+
+    '<button class="qnum" onclick="qtyEdit(\''+q1(it.key)+'\')" aria-label="Skriv in antal">&#9998;</button>'+
     '<button onclick="bumpQty(\''+q1(it.key)+'\','+st+')">+</button></div>';
+  var bt=buyText(it);
   return '<li data-k="'+esc(it.key)+'" class="'+(on?'done':'')+'"><button class="box'+(on?' on':'')+'" onclick="tick(\''+q1(it.key)+'\')">'+
     '<svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg></button>'+
-    '<span class="grow txt"><b style="font-weight:600">'+esc(it.n)+'</b>'+
-    (it.auto?'<span class="pill r">recept</span>':'')+
+    '<span class="grow txt"><span class="nmrow">'+
+      '<b class="nmt"'+(storeOrder&&!edit?' onclick="rowSheet(\''+q1(it.key)+'\',\''+shop+'\')"':'')+'>'+esc(it.n)+'</b>'+
+      (bt?'<b class="buy'+(userChanged(it)?' mine':'')+'">'+esc(bt)+'</b>':'')+'</span>'+
     (edit&&isFresh(it.n)?'<span class="pill late">färsk '+freshDays(it.n)+' d</span>':'')+
-    (it.auto&&S.qty[it.key]!==undefined?'<span class="pill q">ändrad</span>':'')+
+    (S.snooze&&S.snooze[it.key]&&S.snooze[it.key]>Date.now()?'<div class="src snz">tillbaka '+snoozeText(S.snooze[it.key])+'</div>':'')+
     srcLine(it)+
-    (!storeOrder?'<div class="qrow">'+qbox+
+    ((!storeOrder||!edit)?'<div class="qrow">'+qbox+
+      (storeOrder&&!edit?'<button class="mv miss" onclick="rowSheet(\''+q1(it.key)+'\',\''+shop+'\')">fanns inte</button>':'')+
       (!edit&&it.auto&&isFresh(it.n)?'<button class="mv" onclick="setLater(\''+q1(it.key)+'\',true)" title="Flytta till komplettering">&#8987;</button>':'')+
       '</div>':'')+
     '</span>'+
@@ -1788,7 +1906,7 @@ function itemRow(it,shop,storeOrder){
             '<button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',1)">&#9660;</button></div>'
           : '')+
         '<button class="x" onclick="removeRow(\''+q1(it.key)+'\',\''+shop+'\')">&times;</button>'
-      : (storeOrder?qbox+(it.auto&&isFresh(it.n)?'<button class="mv" onclick="setLater(\''+q1(it.key)+'\',true)" title="Flytta till komplettering">&#8987;</button>':''):''))+
+      : '')+
 '</li>';
 }
 function splitLater(list){
@@ -1809,6 +1927,59 @@ function scrollBottom(){
   /* lägg sista raden strax ovanför knappraden */
   var y=window.scrollY+v.getBoundingClientRect().bottom-window.innerHeight+160;
   window.scrollTo({top:Math.max(0,Math.min(max,y)),behavior:'smooth'});
+}
+function openSearch(){
+  var b=document.getElementById('search');b.className='search on';
+  var q=document.getElementById('sq');q.value='';document.getElementById('sres').innerHTML='';
+  setTimeout(function(){q.focus()},30);
+}
+function closeSearch(){document.getElementById('search').className='search';var q=document.getElementById('sq');if(q.blur)q.blur()}
+function searchRun(){
+  var q=(document.getElementById('sq').value||'').trim().toLowerCase(),box=document.getElementById('sres');
+  if(!q){box.innerHTML='';return}
+  var g=groups(),hits=[];
+  [['fram',framRows(g)],['willys',willysRows(g)],['other',otherRows(g)]].forEach(function(p){
+    var sp=splitLater(p[1]);
+    sp.now.forEach(function(it){if(it.n.toLowerCase().indexOf(q)>-1)hits.push({it:it,shop:p[0],late:false})});
+    sp.late.forEach(function(it){if(it.n.toLowerCase().indexOf(q)>-1)hits.push({it:it,shop:p[0],late:true})});
+  });
+  hits.sort(function(a,b){
+    var as=a.it.n.toLowerCase().indexOf(q)===0?0:1,bs=b.it.n.toLowerCase().indexOf(q)===0?0:1;
+    return as-bs||bySv(a.it,b.it);
+  });
+  var h='';
+  hits.slice(0,25).forEach(function(x){
+    window._rows=window._rows||{};window._rows[x.it.key]=x.it;
+    var where=x.shop==='other'?(x.it.movedStore||storeOf(x.it.n)):shopLabel(x.shop);
+    h+='<button class="shit" onclick="searchGo(\''+q1(x.it.key)+'\','+(x.late?1:0)+')">'+
+       '<b>'+esc(x.it.n)+'</b><span>'+esc(where)+(x.late?' &middot; komplettering':'')+(isOn(x.it)?' &middot; avbockad':'')+'</span></button>';
+  });
+  if(!hits.length){
+    var raw=document.getElementById('sq').value.trim();
+    h='<div class="tiny" style="padding:6px 2px 8px">Ingen vara heter så. Lägg till <b>'+esc(raw)+'</b> på:</div><div class="chips">'+
+      '<button class="chip" onclick="searchAdd(\'fram\',\'\')">Fram</button>'+
+      '<button class="chip" onclick="searchAdd(\'willys\',\'\')">Willys</button>'+
+      knownStores().map(function(b){return '<button class="chip" onclick="searchAdd(\'other\',\''+q1(b)+'\')">'+esc(b)+'</button>'}).join('')+
+      '</div>';
+  }
+  box.innerHTML=h;
+}
+function searchAdd(shop,store){
+  var v=(document.getElementById('sq').value||'').trim();if(!v)return;
+  S.extra.push({id:uid(),name:v,shop:shop});setShop(v,shop);
+  if(shop==='other'&&store)S.storeName[normName(v)]=store;
+  closeSearch();save();render();toast(v+' tillagd på '+(shop==='other'?store:shopLabel(shop)));
+}
+function searchGo(key,late){
+  closeSearch();
+  var it=(window._rows||{})[key];
+  if(current==='shop'&&it&&isOn(it)&&!S.showDone){S.showDone=true;save();window._noAnchor=true;render()}
+  var v=document.getElementById('v-'+current),lis=v.querySelectorAll('li[data-k]'),el=null;
+  for(var i=0;i<lis.length;i++)if(lis[i].getAttribute('data-k')===key){el=lis[i];break}
+  if(!el&&late){jumpTo('sec-later');return}
+  if(!el)return;
+  el.scrollIntoView({block:'center'});
+  el.classList.add('flash');setTimeout(function(){el.classList.remove('flash')},1600);
 }
 function jumpTo(id){
   var v=document.getElementById('v-'+current),el=v&&v.querySelector('#'+id);
@@ -2040,7 +2211,6 @@ function planShop(){
   h+=listBlock('Willys &middot; stora butiken','willys',sortDisp(splitLater(willysRows(g)).now.filter(matchQ),'willys',false),false,'addW','Lägg till på Willys');
   h+=otherBlock(g,false);
   h+=laterBlock(g,false);
-  h+=poolBlock();
   h+='<div class="row" style="gap:9px;margin-top:16px">'+
      '<button class="btn quiet wide" onclick="clearTicks()">Nollställ bockar och antal</button></div>'+
      trashButton()+
@@ -2091,7 +2261,10 @@ function syncFab(){
   f.textContent=S.editing?'Klar':'Redigera';
 }
 function defOn(it){return !it.auto}
-function isOn(it){var v=S.checked[it.key];return v===undefined?defOn(it):v}
+function isOn(it){
+  if(S.snooze&&S.snooze[it.key]&&S.snooze[it.key]>Date.now())return true;
+  var v=S.checked[it.key];return v===undefined?defOn(it):v;
+}
 function isOnKey(k){
   var it=window._rows&&window._rows[k];
   var v=S.checked[k];
@@ -2518,7 +2691,7 @@ function load2(d){
   if(!d.weeks&&d.std)d.weeks=d.std;
   if(!d.weeks)d.weeks=SEED_STD();
   if(!d.activeWeeks)d.activeWeeks=d.activeWeek?[d.activeWeek]:[1];
-  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.freshDays)d.freshDays={};if(!d.trash)d.trash=[];if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
+  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.freshDays)d.freshDays={};if(!d.trash)d.trash=[];if(!d.tmpMove)d.tmpMove={};if(!d.snooze)d.snooze={};if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
   if(!d.editWeek)d.editWeek=d.activeWeeks[0]||1;
   if(!d.extra)d.extra=[];if(!d.checked)d.checked={};if(!d.approved)d.approved={};
   if(!d.shopOf)d.shopOf=seedShops();
@@ -2599,6 +2772,7 @@ window.addEventListener('scroll',function(){
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){go(b.dataset.v)}});
 load();
 applyNewOrder();
+migratePool();
 rebuildDays();
 gotoToday();go('plan','shop');
 
