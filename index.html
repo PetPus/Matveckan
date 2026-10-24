@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Matveckan</title>
 <style>
@@ -283,6 +283,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .irow input,.irow select{padding:11px 8px;border-radius:12px}
 .irow .x{font-size:21px;color:#BBA7D4;text-align:center}
 
+.anch{height:0;scroll-margin-top:calc(var(--hh,72px) + 12px)}
+.stick{position:sticky;top:calc(var(--hh,72px) + 8px);z-index:15;background:#fff;border-radius:12px;
+  padding:10px 12px;border-left:5px solid var(--sc);box-shadow:0 6px 14px -10px rgba(60,25,90,.45)}
+.sec-title.stick{margin:24px -2px 10px}
+.stick.sub{font-family:var(--rounded);font-size:13.5px;font-weight:800;color:var(--ink);margin:14px -2px 6px;padding:8px 12px}
+.s-fram{--sc:#1E9E55}.s-willys{--sc:#E2231A}.s-other{--sc:#8A3FFC}.s-later{--sc:#F2A20C}
 .rail{position:fixed;right:2px;top:calc(96px + env(safe-area-inset-top));bottom:calc(168px + env(safe-area-inset-bottom));
   z-index:34;display:none;flex-direction:column;justify-content:space-between;
   padding:8px 3px;border-radius:999px;touch-action:none;user-select:none;-webkit-user-select:none;
@@ -421,7 +427,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='48';
+var APP_VERSION='49';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -731,6 +737,15 @@ function migratePool(){
   });
   S.poolStamp=POOL_STAMP;save();
 }
+var LUNCHBOX_STAMP='matlada-2026-10';
+/* engång: middagarna räcker till matlådor, så de får bocken – mängderna påverkas inte */
+function migrateLunchbox(){
+  if(S.lunchboxStamp===LUNCHBOX_STAMP)return;
+  var f=function(x){if(!x.meal||x.meal==='middag')x.matlada=true};
+  S.weeks.forEach(function(w){for(var d in w.days)(w.days[d]||[]).forEach(f)});
+  for(var k in S.temp)(S.temp[k]||[]).forEach(f);
+  S.lunchboxStamp=LUNCHBOX_STAMP;save();
+}
 var ORDER_STAMP='butiksordning-2026-09-29b';
 function applyNewOrder(){
   if(S.orderStamp===ORDER_STAMP)return;
@@ -989,7 +1004,7 @@ function planWeeks(){
         h+='<button class="'+cls+'"'+(c?' style="--rc:'+c+'"':'')+' onclick="editDish('+w.n+',\''+d[0]+'\','+i+')">'+
            (x.meal&&x.meal!=='middag'?'<i>'+mealLabel(x.meal)+'</i>':'')+
            '<span class="nm">'+esc(dishName(x))+'</span>'+
-           '<small>'+x.portions+' port'+(x.matlada?' &middot; matlåda':'')+'</small>'+
+           '<small>'+x.portions+' port'+((!x.meal||x.meal==='middag')&&!x.matlada?' &middot; utan matlåda':'')+'</small>'+
            (n>1?'<span class="rcn" onclick="event.stopPropagation();toggleHl(\''+q1(k)+'\')">&times;'+n+'</span>':'')+
            '</button>';
       });
@@ -1190,7 +1205,7 @@ function addDish(wn,day){
     '<div class="field"><label>Portioner</label><input type="number" id="f_p" value="4" min="1" max="30"></div>'+
     '<div class="field"><label>Måltid</label><select id="f_m">'+mealOpts('middag')+'</select></div>'+
     '<div class="field"><label>Egen text, valfritt</label><input type="text" id="f_t" placeholder="t.ex. Rester pizza"></div>'+
-    '<div class="field"><label class="row" style="gap:9px"><input type="checkbox" id="f_b" style="width:auto"> Extra för matlåda</label></div>'+
+    '<div class="field"><label class="row" style="gap:9px"><input type="checkbox" id="f_b" style="width:auto" checked> Extra för matlåda</label></div>'+
     '<button class="btn wide" onclick="saveDish('+wn+',\''+day+'\')">Lägg till</button>');
 }
 /* ---- permanent eller bara denna gång ---- */
@@ -1445,7 +1460,7 @@ function askScope(){
 }
 function doPlace(scope){
   var p=window._pl;if(!p)return;
-  var d={id:uid(),recipeId:p.id,portions:p.port,meal:p.meal,text:'',matlada:false},arr;
+  var d={id:uid(),recipeId:p.id,portions:p.port,meal:p.meal,text:'',matlada:p.meal==='middag'},arr;
   if(scope==='once'){
     arr=makeTemp(p.wn,p.day);
   }else{
@@ -1798,7 +1813,7 @@ function base_otherRows(g){
 }
 function otherBlock(g,storeOrder){
   var list=splitLater(otherRows(g)).now,edit=S.editing,h='',by={},order=[];
-  h+='<div class="sec-title" id="sec-other"><span>Annan butik &middot; beställ online</span></div>';
+  h+='<div class="anch" id="sec-other"></div><div class="sec-title stick s-other"><span>Annan butik &middot; beställ online</span></div>';
   var vis=list.filter(function(it){window._rows=window._rows||{};window._rows[it.key]=it;
     return (!storeOrder||S.showDone||edit||!isOn(it))&&(storeOrder||matchQ(it))});
   vis.forEach(function(it){
@@ -1811,7 +1826,7 @@ function otherBlock(g,storeOrder){
     (list.length?'Allt avbockat.':'Inget att beställa.')+'</span></li></ul></div>';
   order.forEach(function(b){
     by[b].sort(bySv);
-    h+='<div class="tiny" style="margin:11px 0 5px;font-weight:600;color:var(--lilac-deep)">'+esc(b)+'</div>'+
+    h+='<div class="stick sub s-other">'+esc(b)+'</div>'+
        '<div class="card"><ul class="slist">';
     by[b].forEach(function(it){h+=itemRow(it,'other',storeOrder)});
     h+='</ul></div>';
@@ -2007,11 +2022,12 @@ function jumpLetter(L){
 }
 function activeSection(){
   var best=null,bestTop=-1e9;
+  var v=document.getElementById('v-'+current);
   ['fram','willys'].forEach(function(id){
-    var e=document.getElementById('sec-'+id);
+    var e=v&&v.querySelector?v.querySelector('#sec-'+id):null;
     if(!e)return;
-    var t=e.getBoundingClientRect().top-90;
-    if(t<=0&&t>bestTop){bestTop=t;best=id}
+    var t=e.getBoundingClientRect().top-(window._hh||70)-60;
+    if(t<=0&&t>=bestTop){bestTop=t;best=id}
   });
   return best||'fram';
 }
@@ -2032,7 +2048,7 @@ function syncRail(){
 }
 function listBlock(title,shop,list,storeOrder,inputId,placeholder){
   var edit=storeOrder&&S.editing,h='';
-  h+='<div class="sec-title" id="sec-'+shop+'"><span>'+title+'</span></div>';
+  h+='<div class="anch" id="sec-'+shop+'"></div><div class="sec-title stick s-'+shop+'"><span>'+title+'</span></div>';
   var vis=list.filter(function(it){window._rows=window._rows||{};window._rows[it.key]=it;
     return !storeOrder||S.showDone||edit||!isOn(it)});
   h+='<div class="card"><ul class="slist">';
@@ -2175,7 +2191,7 @@ function laterBlock(g,storeOrder){
   all=all.filter(function(it){return !storeOrder||S.showDone||!isOn(it)});
   if(!all.length)return '';
   all.sort(function(a,b){return (a.off-b.off)||bySv(a,b)});
-  var h='<div id="later"></div><div class="sec-title" id="sec-later"><span>Komplettering &middot; handlas senare</span>'+
+  var h='<div id="later"></div><div class="anch" id="sec-later"></div><div class="sec-title stick s-later"><span>Komplettering &middot; handlas senare</span>'+
     '<button onclick="remindSheet()">Påminnelser</button></div>'+
     '<div class="tiny" style="margin:-4px 0 8px">Färskvaror som behövs senare än de håller.</div>'+
     '<div class="card"><ul class="slist">';
@@ -2545,7 +2561,7 @@ function renderCook(){
   var dish=dishes[t],r=rec(dish.recipeId);
   h+='<div class="card" style="padding:14px;margin-bottom:12px">'+
      '<h2 style="font-size:18px;margin-bottom:10px">'+esc(dishName(dish))+'</h2>'+
-     '<div class="row"><div class="grow tiny">Portioner'+(dish.matlada?' &middot; matlåda':'')+
+     '<div class="row"><div class="grow tiny">Portioner'+(dish.matlada?' &middot; med matlåda':((!dish.meal||dish.meal==='middag')?' &middot; utan matlåda':''))+
      (dish.meal&&dish.meal!=='middag'?' &middot; '+mealLabel(dish.meal).toLowerCase():'')+'</div>'+
      '<div class="stepper"><button onclick="port('+t+',-1)">&minus;</button><span>'+dish.portions+'</span>'+
      '<button onclick="port('+t+',1)">+</button></div></div>'+
@@ -2751,6 +2767,14 @@ function sheetClose(){
   });
 })();
 document.getElementById('scrim').onclick=sheetClose;
+function measureHeader(){
+  var hd=document.querySelector('header');
+  if(!hd||!hd.offsetHeight)return;
+  window._hh=hd.offsetHeight;
+  var st=document.documentElement.style;
+  if(st&&st.setProperty)st.setProperty('--hh',hd.offsetHeight+'px');
+}
+measureHeader();window.addEventListener('resize',measureHeader);
 (function(){
   var rail=document.getElementById('rail'),last=null;
   function pick(x,y){
@@ -2790,6 +2814,7 @@ document.querySelectorAll('nav button').forEach(function(b){b.onclick=function()
 load();
 applyNewOrder();
 migratePool();
+migrateLunchbox();
 rebuildDays();
 gotoToday();go('plan','shop');
 
