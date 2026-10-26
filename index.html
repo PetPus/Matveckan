@@ -235,6 +235,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
   border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.82);border:1px solid var(--edge)}
 .mv.hint{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--lime),var(--aqua));
   box-shadow:0 6px 14px -8px rgba(0,180,160,.9)}
+.pos.tmp{color:var(--blush-deep);border-color:var(--blush)}
+.pos.none{color:var(--muted)}
+.pill.thaw{background:linear-gradient(135deg,#6AA6E6,#3F72F0)}
+.pill.none{background:#C8BCD9}
 .pos{min-width:44px;height:34px;padding:0 8px;text-align:center;font-size:13px;font-weight:800;
   font-variant-numeric:tabular-nums;border-radius:11px;color:var(--tdeep);background:rgba(255,255,255,.9);border:1px solid var(--edge)}
 .qbox{display:flex;align-items:center;border-radius:999px;flex:0 0 auto;
@@ -427,7 +431,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='49';
+var APP_VERSION='50';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -686,7 +690,7 @@ function fresh(){
    extra:[],checked:{},approved:{},later:{},shopOf:seedShops(),editing:false,cookWeek:null,
    ordFram:SEED_FRAM.map(normName),
    ordWillys:SEED_GRUND.map(normName),
-   startDay:'wed',endDay:'tue',trash:[],tmpMove:{},snooze:{},temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
+   startDay:'wed',endDay:'tue',thawOf:{},trash:[],tmpMove:{},snooze:{},temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
 }
 function load(){
   var raw=store.get(KEY);
@@ -709,7 +713,7 @@ function load(){
     if(!S.ordWillys)S.ordWillys=SEED_GRUND.map(normName);
     if(S.editing===undefined)S.editing=false;
     if(!S.startDay)S.startDay='wed';if(!S.endDay)S.endDay='tue';if(!S.temp)S.temp={};
-    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.trash)S.trash=[];if(!S.tmpMove)S.tmpMove={};if(!S.snooze)S.snooze={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
+    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.trash)S.trash=[];if(!S.thawOf)S.thawOf={};if(!S.tmpMove)S.tmpMove={};if(!S.snooze)S.snooze={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
     if(!S.units)S.units=[];if(!S.unitOf)S.unitOf={};
   }catch(e){S=fresh()}
 }
@@ -852,6 +856,8 @@ function autoFresh(n){
   for(var i=0;i<FRESH.length;i++)if(t.indexOf(FRESH[i])>-1)return true;
   return false;
 }
+function isThaw(n){return !!(S.thawOf&&S.thawOf[normName(n)])}
+function toggleThaw(n){var k=normName(n);S.thawOf=S.thawOf||{};if(S.thawOf[k])delete S.thawOf[k];else S.thawOf[k]=true;save();render()}
 function isFresh(n){
   var v=S.freshOf[normName(n)];
   return v===undefined?autoFresh(n):v;
@@ -1520,10 +1526,51 @@ function shopFor(n){return S.shopOf[normName(n)]||null}
 function setShop(n,s){S.shopOf[normName(n)]=s}
 function ordArr(shop){return shop==='fram'?S.ordFram:S.ordWillys}
 function ordIdx(shop,name){var i=ordArr(shop).indexOf(normName(name));return i<0?1e6:i}
+function tmpPosOf(it){var m=S.tmpMove&&S.tmpMove[it.key];return m&&m.pos?m.pos:0}
+/* butiksordning: tillfälligt flyttade allra först, sedan varor utan plats, sedan resten i ordning.
+   En flyttad vara med tillfällig plats läggs in före den vara som har det numret. */
 function sortDisp(list,shop,storeOrder){
-  if(storeOrder)list.sort(function(a,b){return (ordIdx(shop,a.n)-ordIdx(shop,b.n))||bySv(a,b)});
-  else list.sort(bySv);
-  return list;
+  if(!storeOrder){list.sort(bySv);return list}
+  var mv=[],un=[],so=[];
+  list.forEach(function(it){
+    if(it.movedFrom)mv.push(it);else if(ordIdx(shop,it.n)>=1e6)un.push(it);else so.push(it);
+  });
+  so.sort(function(a,b){return (ordIdx(shop,a.n)-ordIdx(shop,b.n))||bySv(a,b)});
+  un.sort(bySv);
+  var free=mv.filter(function(it){return !tmpPosOf(it)}).sort(bySv),
+      placed=mv.filter(function(it){return tmpPosOf(it)}).sort(function(a,b){return tmpPosOf(a)-tmpPosOf(b)}),
+      out=free.concat(un,so);
+  placed.forEach(function(it){
+    var p=tmpPosOf(it)-1,at=out.length;
+    for(var i=0;i<out.length;i++){
+      if(!out[i].movedFrom&&ordIdx(shop,out[i].n)<1e6&&ordIdx(shop,out[i].n)>=p){at=i;break}
+    }
+    out.splice(at,0,it);
+  });
+  return out;
+}
+function setTmpPos(key,v){
+  if(!S.tmpMove||!S.tmpMove[key])return;
+  var n=parseInt(v,10);S.tmpMove[key].pos=n>0?n:0;
+  save();render();toast(n>0?'Tillfällig plats '+n:'Överst igen');
+}
+function moveTmpPos(key,dir){
+  if(!S.tmpMove||!S.tmpMove[key])return;
+  var cur=S.tmpMove[key].pos||0,n=Math.max(0,cur+dir);
+  if(!cur&&dir>0)n=2;
+  S.tmpMove[key].pos=n;save();render();
+}
+function posSheetTmp(key,shop){
+  var it=(window._rows||{})[key];if(!it)return;
+  var cur=tmpPosOf(it);
+  sheetOpen('<h2>'+esc(it.n)+'</h2>'+
+    '<div class="tiny" style="margin:-6px 0 14px">Flyttad hit från '+shopLabel(it.movedFrom)+' den här gången. '+
+    'Platsen gäller bara nu – varken '+shopLabel(it.movedFrom)+'s eller '+shopLabel(shop)+'s ordning ändras.</div>'+
+    '<div class="row" style="gap:8px">'+
+    '<input type="number" id="posv" inputmode="numeric" min="1" value="'+(cur||'')+'" placeholder="Överst" style="flex:1">'+
+    '<button class="btn" onclick="setTmpPos(\''+q1(key)+'\',document.getElementById(\'posv\').value);sheetClose()">Flytta</button></div>'+
+    (cur?'<button class="btn quiet wide" style="margin-top:9px" onclick="setTmpPos(\''+q1(key)+'\',0);sheetClose()">Överst igen</button>':''));
+  var e=document.getElementById('posv');if(e&&e.focus)e.focus();
 }
 function materialize(shop,list){
   ordArr(shop).length=0;
@@ -1548,7 +1595,8 @@ function setPos(shop,name,v){
 }
 function moveOrd(shop,name,dir){
   var a=ordArr(shop),i=a.indexOf(normName(name)),j=i+dir;
-  if(i<0||j<0||j>=a.length)return;
+  if(i<0){posSheet(shop,name);return}   /* ingen plats än: välj nummer */
+  if(j<0||j>=a.length)return;
   var t=a[i];a[i]=a[j];a[j]=t;save();renderShop();
 }
 function groups(){
@@ -1918,6 +1966,8 @@ function itemRow(it,shop,storeOrder){
       '<b class="nmt"'+(storeOrder&&!edit?' onclick="rowSheet(\''+q1(it.key)+'\',\''+shop+'\')"':'')+'>'+esc(it.n)+'</b>'+
       (bt?'<b class="buy'+(userChanged(it)?' mine':'')+'">'+esc(bt)+'</b>':'')+'</span>'+
     (edit&&isFresh(it.n)?'<span class="pill late">färsk '+freshDays(it.n)+' d</span>':'')+
+    (edit&&isThaw(it.n)?'<span class="pill thaw">tinas</span>':'')+
+    (edit&&storeOrder&&!it.movedFrom&&ordIdx(shop,it.n)>=1e6?'<span class="pill none">ingen plats</span>':'')+
     (S.snooze&&S.snooze[it.key]&&S.snooze[it.key]>Date.now()?'<div class="src snz">tillbaka '+snoozeText(S.snooze[it.key])+'</div>':'')+
     srcLine(it)+
     ((!storeOrder||!edit)?'<div class="qrow">'+qbox+
@@ -1928,9 +1978,14 @@ function itemRow(it,shop,storeOrder){
     (edit
       ? '<button class="mv" onclick="itemSheet(\''+q1(it.key)+'\',\''+shop+'\')">ändra</button>'+
         (storeOrder&&shop!=='other'
-          ? '<button class="pos" onclick="posSheet(\''+shop+'\',\''+q1(it.n)+'\')">'+(ordIdx(shop,it.n)+1)+'</button>'+
-            '<div class="ord"><button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',-1)">&#9650;</button>'+
-            '<button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',1)">&#9660;</button></div>'
+          ? (it.movedFrom
+              ? '<button class="pos tmp" onclick="posSheetTmp(\''+q1(it.key)+'\',\''+shop+'\')">'+(tmpPosOf(it)||'&ndash;')+'</button>'+
+                '<div class="ord"><button onclick="moveTmpPos(\''+q1(it.key)+'\',-1)">&#9650;</button>'+
+                '<button onclick="moveTmpPos(\''+q1(it.key)+'\',1)">&#9660;</button></div>'
+              : '<button class="pos'+(ordIdx(shop,it.n)>=1e6?' none':'')+'" onclick="posSheet(\''+shop+'\',\''+q1(it.n)+'\')">'+
+                  (ordIdx(shop,it.n)>=1e6?'&ndash;':(ordIdx(shop,it.n)+1))+'</button>'+
+                '<div class="ord"><button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',-1)">&#9650;</button>'+
+                '<button onclick="moveOrd(\''+shop+'\',\''+q1(it.n)+'\',1)">&#9660;</button></div>')
           : '')+
         '<button class="x" onclick="removeRow(\''+q1(it.key)+'\',\''+shop+'\')">&times;</button>'
       : '')+
@@ -2170,7 +2225,52 @@ function icsDownload(){
   a.href=URL.createObjectURL(b);a.download='matveckan-paminnelser.ics';
   document.body.appendChild(a);a.click();a.remove();
 }
-function refreshReminders(){try{S.reminders=reminderPlan()}catch(e){}}
+/* vilken vecka och dag ett datum motsvarar i perioden, eller null */
+function periodSlot(dt){
+  if(!S.periodStart)return null;
+  var st=new Date(S.periodStart+'T12:00:00'),d=new Date(dt.getTime());d.setHours(12,0,0,0);
+  var off=Math.round((d-st)/86400000);
+  if(off<0)return null;
+  var p=Math.floor(off/7),i=off%7;
+  if(p>=S.activeWeeks.length||i>=DAYS.length)return null;
+  return {wn:S.activeWeeks[p],day:DAYS[i][0],off:off};
+}
+function mealsText(list){
+  var main=[],other=[];
+  list.forEach(function(x){
+    if(!x.meal||x.meal==='middag')main.push(dishName(x));
+    else other.push(mealLabel(x.meal).toLowerCase()+': '+dishName(x));
+  });
+  return main.concat(other).join(' · ');
+}
+function notesPlan(){
+  var ev=[],th=[];
+  if(!S.periodStart)return{evening:ev,thaw:th};
+  var st=new Date(S.periodStart+'T12:00:00'),last=periodDays()-1;
+  for(var o=-1;o<=last;o++){
+    var d=new Date(st.getTime());d.setDate(d.getDate()+o);
+    var t=new Date(d.getTime());t.setDate(t.getDate()+1);
+    var today=periodSlot(d),tom=periodSlot(t);
+    /* kvällen före: vad som ska lagas i morgon */
+    if(tom){
+      var l=dayDishes(tom.wn,tom.day);
+      ev.push({date:iso(d),title:'I morgon',body:l.length?mealsText(l):'Inget planerat'});
+    }else if(o===last){
+      ev.push({date:iso(d),title:'Perioden slutar i dag',body:'Aktivera nästa veckor i Matveckan'});
+    }
+    /* morgonen samma dag: frysvaror som ska tas fram */
+    if(today){
+      var need=[];
+      dayDishes(today.wn,today.day).forEach(function(x){
+        var r=rec(x.recipeId);if(!r)return;
+        r.ing.forEach(function(g){if(isThaw(g.n))need.push(g.n+' till '+dishName(x))});
+      });
+      if(need.length)th.push({date:iso(d),title:'Ta fram ur frysen',body:need.join(' · ')});
+    }
+  }
+  return{evening:ev,thaw:th};
+}
+function refreshReminders(){try{S.reminders=reminderPlan();S.notes=notesPlan()}catch(e){}}
 function laterCount(g){
   var n=0,f=function(it){if(!isOn(it))n++};
   splitLater(framRows(g)).late.forEach(f);splitLater(willysRows(g)).late.forEach(f);splitLater(otherRows(g)).late.forEach(f);
@@ -2340,6 +2440,10 @@ function itemSheet(key,shop){
          '<span class="tiny" style="margin-left:8px">dagar</span></div>'+
          '<div class="tiny" style="margin-top:7px">Behövs varan senare än så hamnar den i kompletteringslistan.</div>'
        : '')+'</div>';
+  h+='<div class="field"><label>Behöver tinas</label>'+
+     '<button class="btn '+(isThaw(it.n)?'':'quiet ')+'wide" onclick="toggleThaw(\''+q1(it.n)+'\');itemSheet(\''+q1(key)+'\',\''+shop+'\')">'+
+     (isThaw(it.n)?'Ja – påminn morgonen den ska användas':'Nej')+'</button>'+
+     '<div class="tiny" style="margin-top:7px">För frysvaror som ska tas fram i förväg, inte sådant som lagas direkt från frysen.</div></div>';
   h+='<div class="field"><label>Butik</label>'+
      '<button class="btn quiet wide" onclick="storePicker(\''+q1(key)+'\',\''+q1(it.n)+'\')">'+
      (shop==='fram'?'Fram':shop==='willys'?'Willys':esc(storeOf(it.n)))+' &middot; byt</button></div>';
@@ -2361,7 +2465,7 @@ function freshFromSheet(key,shop,name){toggleFresh(name);itemSheet(key,shop)}
 function daysFromSheet(key,shop,name,d){bumpFreshDays(name,d);itemSheet(key,shop)}
 function carryKeys(from,to){
   if(from===to)return;
-  ['shopOf','freshOf','freshDays','storeName'].forEach(function(m){
+  ['shopOf','freshOf','freshDays','storeName','thawOf'].forEach(function(m){
     if(S[m][from]!==undefined&&S[m][to]===undefined)S[m][to]=S[m][from];
     delete S[m][from];
   });
@@ -2724,7 +2828,7 @@ function load2(d){
   if(!d.weeks&&d.std)d.weeks=d.std;
   if(!d.weeks)d.weeks=SEED_STD();
   if(!d.activeWeeks)d.activeWeeks=d.activeWeek?[d.activeWeek]:[1];
-  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.freshDays)d.freshDays={};if(!d.trash)d.trash=[];if(!d.tmpMove)d.tmpMove={};if(!d.snooze)d.snooze={};if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
+  if(!d.later)d.later={};if(!d.freshOf)d.freshOf={};if(!d.freshDays)d.freshDays={};if(!d.trash)d.trash=[];if(!d.thawOf)d.thawOf={};if(!d.tmpMove)d.tmpMove={};if(!d.snooze)d.snooze={};if(!d.temp)d.temp={};if(!d.qty)d.qty={};if(!d.alias)d.alias={};if(!d.cooked)d.cooked={};if(!d.units)d.units=[];if(!d.unitOf)d.unitOf={};
   if(!d.editWeek)d.editWeek=d.activeWeeks[0]||1;
   if(!d.extra)d.extra=[];if(!d.checked)d.checked={};if(!d.approved)d.approved={};
   if(!d.shopOf)d.shopOf=seedShops();
@@ -2812,6 +2916,8 @@ window.addEventListener('scroll',function(){
 },{passive:true});
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){go(b.dataset.v)}});
 load();
+/* ny appversion: skicka upp en gång så att påminnelserna räknas om med den nya koden */
+if(S.appVer!==APP_VERSION){S.appVer=APP_VERSION;S.needPush=true}
 applyNewOrder();
 migratePool();
 migrateLunchbox();
