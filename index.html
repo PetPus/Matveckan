@@ -235,6 +235,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
   border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.82);border:1px solid var(--edge)}
 .mv.hint{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--lime),var(--aqua));
   box-shadow:0 6px 14px -8px rgba(0,180,160,.9)}
+.nset{margin-top:2px}
+.nrow{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.nrow b{font-family:var(--rounded);font-weight:800;min-width:112px}
+.nrow.sub{margin:-4px 0 12px 0;padding-left:12px}
+.tsel{width:auto!important;padding:8px 10px!important;font-size:16px;font-weight:700;border-radius:10px!important}
 .pos.tmp{color:var(--blush-deep);border-color:var(--blush)}
 .pos.none{color:var(--muted)}
 .pill.thaw{background:linear-gradient(135deg,#6AA6E6,#3F72F0)}
@@ -431,7 +436,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.v8';
-var APP_VERSION='50';
+var APP_VERSION='52';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -2198,7 +2203,7 @@ function icsText(){
 function remindSheet(){
   var base=S.periodStart||iso(nextStart()),rows=remindList(),h='';
   h+='<h2>Påminnelser</h2>'+
-     '<div class="tiny" style="margin:-6px 0 12px">Larm 06:45, '+remindDaysText()+' varan behövs.</div>'+
+     '<div class="tiny" style="margin:-6px 0 12px">Larm '+notifyCfg().wd+' vardagar och '+notifyCfg().we+' helger, '+remindDaysText()+' varan behövs.</div>'+
      '<div class="row" style="margin-bottom:14px"><span class="grow tiny">Varsel</span>'+
      '<div class="stepper"><button onclick="bumpRemindDays(-1);remindSheet()">&minus;</button>'+
      '<span>'+remindDays()+'</span>'+
@@ -2246,31 +2251,74 @@ function mealsText(list){
 function notesPlan(){
   var ev=[],th=[];
   if(!S.periodStart)return{evening:ev,thaw:th};
-  var st=new Date(S.periodStart+'T12:00:00'),last=periodDays()-1;
-  for(var o=-1;o<=last;o++){
+  var st=new Date(S.periodStart+'T12:00:00'),last=periodDays()-1,lead=notifyCfg().eveLead;
+  var DN=['söndag','måndag','tisdag','onsdag','torsdag','fredag','lördag'];
+  for(var o=-Math.max(1,lead);o<=last;o++){
     var d=new Date(st.getTime());d.setDate(d.getDate()+o);
-    var t=new Date(d.getTime());t.setDate(t.getDate()+1);
+    var t=new Date(d.getTime());t.setDate(t.getDate()+lead);
     var today=periodSlot(d),tom=periodSlot(t);
-    /* kvällen före: vad som ska lagas i morgon */
+    /* kvällsnotisen: maten så många dagar fram som du valt */
     if(tom){
       var l=dayDishes(tom.wn,tom.day);
-      ev.push({date:iso(d),title:'I morgon',body:l.length?mealsText(l):'Inget planerat'});
+      ev.push({date:iso(d),title:lead===0?'I dag':lead===1?'I morgon':'På '+DN[t.getDay()],
+               body:l.length?mealsText(l):'Inget planerat'});
     }else if(o===last){
       ev.push({date:iso(d),title:'Perioden slutar i dag',body:'Aktivera nästa veckor i Matveckan'});
     }
-    /* morgonen samma dag: frysvaror som ska tas fram */
+    /* frysvaror som ska tas fram – inställbart antal dagar innan rätten äts */
     if(today){
       var need=[];
       dayDishes(today.wn,today.day).forEach(function(x){
         var r=rec(x.recipeId);if(!r)return;
         r.ing.forEach(function(g){if(isThaw(g.n))need.push(g.n+' till '+dishName(x))});
       });
-      if(need.length)th.push({date:iso(d),title:'Ta fram ur frysen',body:need.join(' · ')});
+      if(need.length){
+        var td=new Date(d.getTime());td.setDate(td.getDate()-notifyCfg().thawLead);
+        th.push({date:iso(td),title:'Ta fram ur frysen',body:need.join(' · ')});
+      }
     }
   }
   return{evening:ev,thaw:th};
 }
-function refreshReminders(){try{S.reminders=reminderPlan();S.notes=notesPlan()}catch(e){}}
+/* notisinställningar för hela hushållet – synkas och läses av Supabase-funktionen */
+var NOTIFY_DEF={wd:'06:45',we:'09:15',kompl:true,thaw:true,thawLead:1,eve:true,eveT:'17:00',eveLead:1};
+function notifyCfg(){
+  var c=S.notify||{},o={};
+  for(var k in NOTIFY_DEF)o[k]=(c[k]===undefined?NOTIFY_DEF[k]:c[k]);
+  return o;
+}
+function setNotify(k,v){S.notify=notifyCfg();S.notify[k]=v;save();render()}
+function timeSelect(k,val){
+  var h='<select class="tsel" onchange="setNotify(\''+k+'\',this.value)">';
+  for(var m=0;m<24*60;m+=15){
+    var t=('0'+Math.floor(m/60)).slice(-2)+':'+('0'+m%60).slice(-2);
+    h+='<option'+(t===val?' selected':'')+'>'+t+'</option>';
+  }
+  return h+'</select>';
+}
+function toggleBtn(k,on){
+  return '<button class="mv'+(on?' hint':'')+'" onclick="setNotify(\''+k+'\','+(!on)+')">'+(on?'På':'Av')+'</button>';
+}
+function notifySettings(){
+  var c=notifyCfg();
+  return '<div class="nset">'+
+    '<div class="nrow"><b>Morgon</b><span class="tiny">vardag</span>'+timeSelect('wd',c.wd)+
+      '<span class="tiny">helg</span>'+timeSelect('we',c.we)+'</div>'+
+    '<div class="tiny" style="margin:-2px 0 10px">Helgtiden gäller också röda dagar.</div>'+
+    '<div class="nrow"><b>Komplettering</b>'+toggleBtn('kompl',c.kompl)+'</div>'+
+    (c.kompl?'<div class="nrow sub"><span class="tiny">Varsel</span><div class="stepper"><button onclick="bumpRemindDays(-1)">&minus;</button>'+
+      '<span>'+remindDays()+'</span><button onclick="bumpRemindDays(1)">+</button></div><span class="tiny">dagar innan varan behövs</span></div>':'')+
+    '<div class="nrow"><b>Tina</b>'+toggleBtn('thaw',c.thaw)+'</div>'+
+    (c.thaw?'<div class="nrow sub"><div class="stepper"><button onclick="setNotify(\'thawLead\','+Math.max(0,c.thawLead-1)+')">&minus;</button>'+
+      '<span>'+c.thawLead+'</span><button onclick="setNotify(\'thawLead\','+Math.min(3,c.thawLead+1)+')">+</button></div>'+
+      '<span class="tiny">'+(c.thawLead===0?'samma dag som rätten äts':c.thawLead===1?'dagen innan rätten äts':c.thawLead+' dagar innan rätten äts')+'</span></div>':'')+
+    '<div class="nrow"><b>Kväll</b>'+toggleBtn('eve',c.eve)+(c.eve?timeSelect('eveT',c.eveT):'')+'</div>'+
+    (c.eve?'<div class="nrow sub"><div class="stepper"><button onclick="setNotify(\'eveLead\','+Math.max(0,c.eveLead-1)+')">&minus;</button>'+
+      '<span>'+c.eveLead+'</span><button onclick="setNotify(\'eveLead\','+Math.min(3,c.eveLead+1)+')">+</button></div>'+
+      '<span class="tiny">'+(c.eveLead===0?'visar dagens mat':c.eveLead===1?'visar morgondagens mat':'visar maten om '+c.eveLead+' dagar')+'</span></div>':'')+
+    '</div>';
+}
+function refreshReminders(){try{S.reminders=reminderPlan();S.notes=notesPlan();S.notify=notifyCfg()}catch(e){}}
 function laterCount(g){
   var n=0,f=function(it){if(!isOn(it))n++};
   splitLater(framRows(g)).late.forEach(f);splitLater(willysRows(g)).late.forEach(f);splitLater(otherRows(g)).late.forEach(f);
