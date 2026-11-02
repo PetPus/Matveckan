@@ -240,6 +240,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--t2);
 .nrow b{font-family:var(--rounded);font-weight:800;min-width:112px}
 .nrow.sub{margin:-4px 0 12px 0;padding-left:12px}
 .tsel{width:auto!important;padding:8px 10px!important;font-size:16px;font-weight:700;border-radius:10px!important}
+.spcard{padding:14px;margin-bottom:12px;border:2px solid #00B4CC;background:#F2FCFD}
+.sptitle{font-family:var(--rounded);font-size:18px;font-weight:800;color:#0B6F7C}
+.spov thead th .sph{display:block;font-family:var(--rounded);font-weight:800;font-size:13px;color:#fff;
+  padding:7px 8px;border-radius:10px;background:linear-gradient(135deg,#00C2D7,#0B8FA0)}
+.spov td.out{background:transparent;border:0}
+.spov td.act{border-color:#8ADCE6}
+.spdate{font-size:10.5px;font-weight:800;color:#0B8FA0;margin-bottom:4px;font-family:var(--rounded)}
 .pos.tmp{color:var(--blush-deep);border-color:var(--blush)}
 .pos.none{color:var(--muted)}
 .pill.thaw{background:linear-gradient(135deg,#6AA6E6,#3F72F0)}
@@ -436,12 +443,13 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.shared.v1';
-var APP_VERSION='52-delad';
+var APP_VERSION='53-delad';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
 function labelOf(k){for(var i=0;i<ALLDAYS.length;i++)if(ALLDAYS[i][0]===k)return ALLDAYS[i][1];return k}
 function rebuildDays(){
+  if(specialActive()){DAYS=specialDays();return}
   var si=CYC.indexOf(S.startDay||'wed'),ei=CYC.indexOf(S.endDay||'tue'),out=[],i,k;
   if(si<0)si=2;if(ei<0)ei=1;
   i=si;
@@ -695,7 +703,7 @@ function fresh(){
    extra:[],checked:{},approved:{},later:{},shopOf:seedShops(),editing:false,cookWeek:null,
    ordFram:SEED_FRAM.map(normName),
    ordWillys:SEED_GRUND.map(normName),
-   startDay:'wed',endDay:'tue',thawOf:{},trash:[],tmpMove:{},snooze:{},temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
+   startDay:'wed',endDay:'tue',special:null,specialWeeks:[],savedPlans:[],thawOf:{},trash:[],tmpMove:{},snooze:{},temp:{},freshOf:{},freshDays:{},qty:{},alias:{},cooked:{},units:[],unitOf:{},cookDay:'wed',cookTab:0,showDone:false};
 }
 function load(){
   var raw=store.get(KEY);
@@ -718,7 +726,7 @@ function load(){
     if(!S.ordWillys)S.ordWillys=SEED_GRUND.map(normName);
     if(S.editing===undefined)S.editing=false;
     if(!S.startDay)S.startDay='wed';if(!S.endDay)S.endDay='tue';if(!S.temp)S.temp={};
-    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.trash)S.trash=[];if(!S.thawOf)S.thawOf={};if(!S.tmpMove)S.tmpMove={};if(!S.snooze)S.snooze={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
+    if(!S.freshOf)S.freshOf={};if(!S.freshDays)S.freshDays={};if(!S.qty)S.qty={};if(!S.trash)S.trash=[];if(!S.specialWeeks)S.specialWeeks=[];if(!S.savedPlans)S.savedPlans=[];if(!S.thawOf)S.thawOf={};if(!S.tmpMove)S.tmpMove={};if(!S.snooze)S.snooze={};if(!S.alias)S.alias={};if(!S.cooked)S.cooked={};
     if(!S.units)S.units=[];if(!S.unitOf)S.unitOf={};
   }catch(e){S=fresh()}
 }
@@ -955,6 +963,47 @@ function migrateLunchbox(){
   for(var k in S.temp)(S.temp[k]||[]).forEach(f);
   S.lunchboxStamp=LUNCHBOX_STAMP;save();
 }
+var GLASS_STAMP='glass-mellanmal-2026-11';
+/* glass är mellanmål i alla veckor */
+function migrateGlass(){
+  if(S.glassStamp===GLASS_STAMP)return;
+  var ids=S.recipes.filter(function(r){return r.name.toLowerCase()==='glass'}).map(function(r){return r.id});
+  S.weeks.forEach(function(w){for(var d in w.days)(w.days[d]||[]).forEach(function(x){if(ids.indexOf(x.recipeId)>-1&&!x.text){x.meal='mellanmal';x.matlada=false}})});
+  for(var k in S.temp)(S.temp[k]||[]).forEach(function(x){if(ids.indexOf(x.recipeId)>-1&&!x.text){x.meal='mellanmal';x.matlada=false}});
+  S.glassStamp=GLASS_STAMP;save();
+}
+var SPECIAL_SEED='special-2026-11-09';
+/* den specialperiod Petter bad om: måndag 9 – tisdag 17 november */
+function seedSpecial(){
+  if(S.specialSeed===SPECIAL_SEED)return;
+  S.specialSeed=SPECIAL_SEED;
+  if(S.special){save();return}
+  var byName=function(n){return S.recipes.filter(function(r){return r.name.toLowerCase()===n.toLowerCase()})[0]};
+  if(!byName('Grön ärtsoppa'))S.recipes.push({id:uid(),name:'Grön ärtsoppa',type:'middag',types:['middag'],bas:4,ing:[]});
+  S.special={name:'Specialvecka',start:'2026-11-09',days:9,weeks:[],active:false};
+  S.specialWeeks=[];ensureSpecialWeeks();
+  var port=function(rid){var p=4;S.weeks.some(function(w){for(var d in w.days)if((w.days[d]||[]).some(function(x){if(x.recipeId===rid){p=x.portions;return true}}))return true});return p};
+  [[0,'mon','Lasagne'],[0,'tue','Grön ärtsoppa'],[0,'wed','Pasta carbonara'],[0,'thu','Kyckling i gul curry med blomkålsris'],
+   [0,'fri','Tacos'],[0,'sat','Panerad fisk och blomkål med dillsås'],[0,'sun','Korvstroganoff med ris'],
+   [1,'mon','Falafel med rotsaker'],[1,'tue','Persiljekyckling']].forEach(function(p){
+    var r=byName(p[2]);if(!r)return;
+    S.specialWeeks[p[0]].days[p[1]].push({id:uid(),recipeId:r.id,portions:port(r.id),meal:'middag',text:'',matlada:true});
+  });
+  /* fasta inslag: samma rätt samma veckodag i alla standardveckor */
+  var SD=specialDays().map(function(d){return d[0]});
+  CYC.forEach(function(k){
+    ((S.weeks[0]&&S.weeks[0].days[k])||[]).forEach(function(x){
+      if(!x.meal||x.meal==='middag'||x.text)return;
+      var every=S.weeks.every(function(w){return (w.days[k]||[]).some(function(y){return y.recipeId===x.recipeId&&y.meal===x.meal&&!y.text})});
+      if(!every)return;
+      S.specialWeeks.forEach(function(sw,pos){
+        if(pos*7+SD.indexOf(k)>=S.special.days)return;
+        sw.days[k].push({id:uid(),recipeId:x.recipeId,portions:x.portions,meal:x.meal,text:'',matlada:false});
+      });
+    });
+  });
+  save();
+}
 var ORDER_STAMP='butiksordning-2026-09-29b';
 function applyNewOrder(){
   if(S.orderStamp===ORDER_STAMP)return;
@@ -964,7 +1013,31 @@ function applyNewOrder(){
   save();
 }
 function rec(id){for(var i=0;i<S.recipes.length;i++)if(S.recipes[i].id===id)return S.recipes[i];return null}
-function wk(n){for(var i=0;i<S.weeks.length;i++)if(S.weeks[i].n===n)return S.weeks[i];return null}
+function wk(n){
+  for(var i=0;i<S.weeks.length;i++)if(S.weeks[i].n===n)return S.weeks[i];
+  var sp=S.specialWeeks||[];for(var j=0;j<sp.length;j++)if(sp[j].n===n)return sp[j];
+  return null;
+}
+/* ---- specialperiod: egna veckor utanför rotationen ---- */
+var SPECIAL_BASE=1000;
+function isSpecialWk(n){return n>=SPECIAL_BASE}
+function specialActive(){return !!(S.special&&S.special.active)}
+function weekName(n){
+  if(!isSpecialWk(n))return 'Vecka '+n;
+  var nm=(S.special&&S.special.name)||'Special',cnt=(S.special&&S.special.weeks||[]).length;
+  return cnt>1?nm+' '+(n-SPECIAL_BASE+1):nm;
+}
+function wkShort(n){return isSpecialWk(n)?'S'+(n-SPECIAL_BASE+1):'v'+n}
+/* sju dagar från specialperiodens första veckodag */
+function specialDays(){
+  if(!S.special)return [];
+  var d=new Date(S.special.start+'T12:00:00'),i=(d.getDay()+6)%7,out=[];
+  for(var k=0;k<7;k++){var c=CYC[(i+k)%7];out.push([c,labelOf(c)])}
+  return out;
+}
+/* ligger dag nr idx i vecka nr pos inom perioden? */
+function inPeriod(pos,idx){return !specialActive()||pos*7+idx<S.special.days}
+function specialEnd(){var d=new Date(S.special.start+'T12:00:00');d.setDate(d.getDate()+S.special.days-1);return iso(d)}
 function tkey(n,d){return n+'|'+d}
 function dayDishes(wn,day){
   var t=S.temp[tkey(wn,day)];
@@ -985,6 +1058,7 @@ function actWeeks(){
 }
 function isActive(n){return S.activeWeeks.indexOf(n)>-1}
 function actLabel(){
+  if(specialActive())return (S.special.name||'specialperioden');
   var a=S.activeWeeks.slice();
   if(a.length===1)return 'vecka '+a[0];
   return 'vecka '+a.slice(0,-1).join(', ')+' och '+a[a.length-1];
@@ -1003,7 +1077,7 @@ function gotoToday(){
     if(off<0){wpos=0;idx=0}            /* perioden har inte börjat: visa första dagen */
     else{
       var p=Math.floor(off/7),d=off%7;
-      if(p<weeks.length&&d<DAYS.length){wpos=p;idx=d}
+      if(p<weeks.length&&d<DAYS.length&&inPeriod(p,d)){wpos=p;idx=d}
     }
   }
   if(idx<0){
@@ -1015,8 +1089,8 @@ function gotoToday(){
   for(var guard=0;guard<70;guard++){
     var key=DAYS[idx][0];
     if(!dayDone(weeks[wpos],key))break;
-    if(idx+1<DAYS.length)idx++;
-    else if(wpos+1<weeks.length){wpos++;idx=0}
+    if(idx+1<DAYS.length&&inPeriod(wpos,idx+1))idx++;
+    else if(wpos+1<weeks.length&&inPeriod(wpos+1,0)){wpos++;idx=0}
     else break;
   }
   S.cookWeek=weeks[wpos];S.cookDay=DAYS[idx][0];S.cookTab=0;
@@ -1041,7 +1115,8 @@ function toggleCooked(wn,day,i){
   markDirty('cooked',k);
   save();render();
 }
-function cookDays(){var o={},n=cookWeekNo();DAYS.forEach(function(d){o[d[0]]=dayDishes(n,d[0])});return o}
+function cookDAYS(){var pos=Math.max(0,S.activeWeeks.indexOf(cookWeekNo()));return DAYS.filter(function(d,i){return inPeriod(pos,i)})}
+function cookDays(){var o={},n=cookWeekNo();cookDAYS().forEach(function(d){o[d[0]]=dayDishes(n,d[0])});return o}
 /* dag 0 = onsdag i första aktiva veckan */
 function dayOffset(dayKey,weekPos){
   var i=0;DAYS.forEach(function(d,k){if(d[0]===dayKey)i=k});
@@ -1049,7 +1124,7 @@ function dayOffset(dayKey,weekPos){
 }
 function offsetLabel(off){
   var d=DAYS[off%7][1],w=Math.floor(off/7);
-  return d.slice(0,3)+' v'+(S.activeWeeks[w]||'?');
+  return d.slice(0,3)+' '+(S.activeWeeks[w]?wkShort(S.activeWeeks[w]):'?');
 }
 var FRESH=['sallad','gurka','tomat','avokado','banan','melon','broccoli','blomkål','paprika','zucchini',
  'aubergine','svamp','morot','purjo','spenat','basilika','persilja','dill','koriander','gräslök','kruka',
@@ -1157,7 +1232,7 @@ function render(){
   var subtitle='';
   if(current==='plan'){renderPlan();subtitle=SUBS[sub]+(sub==='week'?' · '+actLabel():'')}
   else if(current==='shop'){renderShop();subtitle='Butiksordning · '+actLabel()}
-  else if(current==='cook'){renderCook();subtitle='Vecka '+cookWeekNo()}
+  else if(current==='cook'){renderCook();subtitle=weekName(cookWeekNo())}
   else{renderMore();subtitle='Data och underhåll'}
   document.getElementById('hdrsub').textContent=subtitle;
   syncFab();syncRail();
@@ -1189,6 +1264,130 @@ function recurrence(){
   return{cnt:cnt,col:col};
 }
 function toggleHl(k){window._hl=window._hl===k?null:k;render()}
+function cloneDays(days){var o=JSON.parse(JSON.stringify(days||{}));for(var k in o)(o[k]||[]).forEach(function(x){x.id=uid()});return o}
+function ensureSpecialWeeks(){
+  var need=Math.max(1,Math.ceil(S.special.days/7)),w=S.specialWeeks=S.specialWeeks||[];
+  while(w.length<need)w.push({n:SPECIAL_BASE+w.length,days:emptyWeek()});
+  while(w.length>need)w.pop();
+  S.special.weeks=w.map(function(x){return x.n});
+}
+function activateSpecial(quiet){
+  if(!S.special||S.special.active)return;
+  S.stdBackup={a:S.activeWeeks.filter(function(n){return !isSpecialWk(n)}),p:S.periodStart||''};
+  S.special.active=true;S.activeWeeks=S.special.weeks.slice();S.periodStart=S.special.start;
+  rebuildDays();resetPeriod();S.cookWeek=null;gotoToday();save();
+  if(!quiet){render();toast(S.special.name+' är aktiv')}
+}
+/* avsluta eller ta bort specialperioden – standardveckorna tar vid igen */
+function endSpecial(silent){
+  if(!S.special)return;
+  var was=S.special.active,b=S.stdBackup||{};
+  S.special=null;S.specialWeeks=[];S.stdBackup=null;
+  if(was){
+    S.activeWeeks=(b.a||[]).filter(function(n){return !!wk(n)});
+    if(!S.activeWeeks.length)S.activeWeeks=[S.weeks[0].n];
+    rebuildDays();S.periodStart=nextStartDate();resetPeriod();S.cookWeek=null;gotoToday();
+  }
+  save();if(!silent){render();toast(was?'Tillbaka till standardveckorna':'Specialperioden borttagen')}
+}
+function autoSpecial(){if(S.special&&!S.special.active&&S.special.start<=iso(new Date()))activateSpecial(true)}
+function createSpecial(name,start,days,src){
+  S.special={name:name||'Special',start:start,days:days,weeks:[],active:false};
+  S.specialWeeks=[];ensureSpecialWeeks();
+  if(src&&src.indexOf('std:')===0){
+    var all=S.weeks.slice().sort(function(a,b){return a.n-b.n}),n=parseInt(src.slice(4),10),i=0;
+    for(var k=0;k<all.length;k++)if(all[k].n===n)i=k;
+    S.specialWeeks.forEach(function(sw,j){sw.days=cloneDays(all[(i+j)%all.length].days)});
+  }else if(src&&src.indexOf('tpl:')===0){
+    var t=(S.savedPlans||[]).filter(function(x){return x.id===src.slice(4)})[0];
+    if(t)S.specialWeeks.forEach(function(sw,j){if(t.weeks[j])sw.days=cloneDays(t.weeks[j])});
+  }
+  save();autoSpecial();render();
+  toast(S.special.active?S.special.name+' är aktiv':S.special.name+' planerad från '+prettyDate(start));
+}
+function specialSheet(mode,tpl){
+  var e=mode==='edit',sp=e?S.special:{name:'Special',start:iso(new Date()),days:7};
+  if(!e&&tpl){var t=(S.savedPlans||[]).filter(function(x){return x.id===tpl})[0];if(t){sp.name=t.name;sp.days=t.days}}
+  var src='';
+  if(!e){
+    src='<div class="field"><label>Börja med</label><select id="sp_src"><option value="">Tomma dagar</option>'+
+      S.weeks.slice().sort(function(a,b){return a.n-b.n}).map(function(w){return '<option value="std:'+w.n+'">Kopia av vecka '+w.n+'</option>'}).join('')+
+      (S.savedPlans||[]).map(function(t){return '<option value="tpl:'+t.id+'"'+(t.id===tpl?' selected':'')+'>Mallen '+esc(t.name)+'</option>'}).join('')+
+      '</select></div>';
+  }
+  sheetOpen('<h2>'+(e?'Ändra specialperiod':'Ny specialperiod')+'</h2>'+
+    '<div class="tiny" style="margin:-6px 0 14px">Egna dagar utanför rotationen. Standardveckorna rörs inte och väntar tills perioden är slut.</div>'+
+    '<div class="field"><label>Namn</label><input type="text" id="sp_n" value="'+esc(sp.name)+'"></div>'+
+    '<div class="row" style="gap:8px"><div class="field grow"><label>Första dagen</label><input type="date" id="sp_s" value="'+sp.start+'"></div>'+
+    '<div class="field" style="width:110px"><label>Antal dagar</label><input type="number" id="sp_d" min="1" max="28" value="'+sp.days+'"></div></div>'+
+    src+
+    '<button class="btn wide" onclick="saveSpecialSheet(\''+mode+'\')">'+(e?'Spara':'Skapa')+'</button>');
+}
+function saveSpecialSheet(mode){
+  var nm=(document.getElementById('sp_n').value||'').trim()||'Special',
+      st=document.getElementById('sp_s').value||iso(new Date()),
+      dd=Math.max(1,Math.min(28,parseInt(document.getElementById('sp_d').value,10)||7));
+  if(mode!=='edit'){var src=document.getElementById('sp_src').value;sheetClose();createSpecial(nm,st,dd,src);return}
+  var sp=S.special,drop=Math.max(1,Math.ceil(dd/7))<sp.weeks.length;
+  if(drop&&!confirm('Perioden blir kortare och den sista veckan försvinner med sina rätter. Fortsätta?'))return;
+  sp.name=nm;sp.start=st;sp.days=dd;ensureSpecialWeeks();
+  if(sp.active){S.activeWeeks=sp.weeks.slice();S.periodStart=st;rebuildDays()}
+  save();autoSpecial();sheetClose();render();toast('Sparad');
+}
+function saveTemplate(){
+  var nm=prompt('Spara som mall – namn',S.special.name||'Special');if(!nm)return;
+  S.savedPlans=S.savedPlans||[];
+  S.savedPlans.push({id:uid(),name:nm.trim(),days:S.special.days,
+    weeks:S.specialWeeks.map(function(w){return JSON.parse(JSON.stringify(w.days))})});
+  save();render();toast('Sparad som mallen '+nm.trim());
+}
+function plansSheet(){
+  var L=S.savedPlans||[],h='<h2>Sparade perioder</h2>';
+  if(!L.length){sheetOpen(h+'<div class="empty">Inga sparade perioder än. Spara en specialperiod som mall så hamnar den här.</div>');return}
+  h+='<div class="card"><ul class="slist">';
+  L.forEach(function(t){
+    h+='<li><span class="grow"><b style="font-weight:650">'+esc(t.name)+'</b><div class="src">'+t.days+' dagar</div></span>'+
+       (S.special?'':'<button class="mv" onclick="specialSheet(\'new\',\''+t.id+'\')">Använd</button>')+
+       '<button class="mv" onclick="if(confirm(\'Ta bort mallen '+q1(t.name)+'?\')){delTemplate(\''+t.id+'\')}">Ta bort</button></li>';
+  });
+  sheetOpen(h+'</ul></div>'+(S.special?'<div class="tiny" style="margin-top:9px">Avsluta den pågående specialperioden för att använda en mall.</div>':''));
+}
+function delTemplate(id){S.savedPlans=(S.savedPlans||[]).filter(function(x){return x.id!==id});save();plansSheet();render()}
+/* specialperiodens rutnät, med datum på varje dag */
+function specialBlock(){
+  var sp=S.special;if(!sp)return '';
+  var SD=specialDays(),weeks=S.specialWeeks||[],h='';
+  h+='<div class="card spcard"><div class="row"><span class="grow"><b class="sptitle">'+esc(sp.name)+'</b>'+
+     '<div class="tiny" style="margin-top:3px">'+prettyDate(sp.start)+' – '+prettyDate(specialEnd())+' &middot; '+sp.days+' dagar &middot; '+
+     (sp.active?'<b style="color:#0B8FA0">aktiv</b>':'planerad, startar av sig själv '+prettyDate(sp.start))+'</div></span></div>'+
+     '<div class="row" style="gap:7px;margin-top:11px;flex-wrap:wrap">'+
+     (sp.active?'':'<button class="btn grow" onclick="activateSpecial()">Aktivera nu</button>')+
+     '<button class="btn quiet grow" onclick="specialSheet(\'edit\')">Ändra</button>'+
+     '<button class="btn quiet grow" onclick="saveTemplate()">Spara som mall</button>'+
+     '<button class="btn quiet grow" onclick="if(confirm(\''+(sp.active?'Avsluta specialperioden och gå tillbaka till standardveckorna?':'Ta bort specialperioden?')+'\'))endSpecial()">'+
+       (sp.active?'Avsluta':'Ta bort')+'</button></div></div>';
+  h+='<div class="ovwrap"><table class="ov spov"><thead><tr><th></th>';
+  weeks.forEach(function(w){h+='<th class="act"><span class="sph">'+esc(weekName(w.n))+'</span></th>'});
+  h+='</tr></thead><tbody>';
+  var st=new Date(sp.start+'T12:00:00');
+  SD.forEach(function(d,di){
+    h+='<tr><th>'+d[1].slice(0,3)+'</th>';
+    weeks.forEach(function(w,pos){
+      var off=pos*7+di;
+      if(off>=sp.days){h+='<td class="out"></td>';return}
+      var dt=new Date(st.getTime());dt.setDate(dt.getDate()+off);
+      h+='<td class="act"><div class="spdate">'+dt.getDate()+' '+['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'][dt.getMonth()]+'</div>';
+      dayDishes(w.n,d[0]).forEach(function(x,i){
+        h+='<button class="ovd" onclick="editDish('+w.n+',\''+d[0]+'\','+i+')">'+
+           (x.meal&&x.meal!=='middag'?'<i>'+mealLabel(x.meal)+'</i>':'')+'<span class="nm">'+esc(dishName(x))+'</span>'+
+           (x.meal==='middag'||!x.meal?'<small>'+x.portions+' port'+(!x.matlada?' &middot; utan matlåda':'')+'</small>':'')+'</button>';
+      });
+      h+='<button class="ovadd" onclick="addDish('+w.n+',\''+d[0]+'\')">+</button></td>';
+    });
+    h+='</tr>';
+  });
+  return h+'</tbody></table></div><div class="sec-title" style="margin-top:22px">Standardveckor</div>';
+}
 function planWeeks(){
   var weeks=S.weeks.slice().sort(function(a,b){return a.n-b.n}),rc=recurrence(),hl=window._hl||null,h='';
   h+='<div class="card" style="padding:12px 14px;margin-bottom:12px"><div class="row">'+
@@ -1196,8 +1395,11 @@ function planWeeks(){
      (S.periodStart?' &middot; start '+prettyDate(S.periodStart):'')+'</span></div>'+
      '<div class="tiny" style="margin-top:6px">Tryck på en vecka för att göra den aktiv, kopiera eller tömma den. '+
      'Tryck på en rätt för att flytta, ändra eller ta bort, och på <b>×N</b> för att se var den återkommer.</div></div>';
-  h+='<div class="row" style="gap:8px;margin-bottom:12px">'+
+  h=specialBlock()+h;
+  h+='<div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">'+
      '<button class="btn quiet grow" onclick="addWeek();window.scrollTo(0,0)">+ Ny vecka</button>'+
+     (S.special?'':'<button class="btn quiet grow" onclick="specialSheet(\'new\')">+ Specialperiod</button>')+
+     '<button class="btn quiet grow" onclick="plansSheet()">Sparade ('+(S.savedPlans||[]).length+')</button>'+
      (hl?'<button class="btn grow" onclick="toggleHl(null)">Visa alla rätter</button>':'')+'</div>';
   h+='<div class="ovwrap" id="ovwrap" onscroll="window._ovx=this.scrollLeft"><table class="ov"><thead><tr><th></th>';
   weeks.forEach(function(w){
@@ -1337,7 +1539,13 @@ function prettyDate(v){
   return ['sön','mån','tis','ons','tors','fre','lör'][d.getDay()]+' '+d.getDate()+' '+
     ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'][d.getMonth()];
 }
+function leaveSpecialFirst(){
+  if(!specialActive())return true;
+  if(!confirm('Det här avslutar specialperioden och går tillbaka till standardveckorna. Fortsätta?'))return false;
+  endSpecial(true);return true;
+}
 function toggleActive(n){
+  if(!leaveSpecialFirst())return;
   var before=S.activeWeeks[0];
   var a=S.activeWeeks,i=a.indexOf(n);
   if(i>-1){
@@ -1351,14 +1559,16 @@ function toggleActive(n){
   toast('Handlar för '+actLabel());
 }
 /* perioden räknat i dagar: veckoblock om sju dagar plus de valda dagarna */
-function periodDays(){return (S.activeWeeks.length-1)*7+DAYS.length}
+function periodDays(){return specialActive()?S.special.days:(S.activeWeeks.length-1)*7+DAYS.length}
 function periodText(){
+  if(specialActive())return prettyDate(S.special.start)+' – '+prettyDate(specialEnd())+' · '+S.special.days+' dagar';
   return DAYS[0][1]+'–'+DAYS[DAYS.length-1][1].toLowerCase()+
     (S.activeWeeks.length>1?' i '+S.activeWeeks.length+' veckor':'')+
     ' · '+periodDays()+' dagar';
 }
 /* lägg till eller ta bort veckor framåt från den du står på */
 function setWeekSpan(from,n){
+  if(!leaveSpecialFirst())return;
   var all=S.weeks.slice().sort(function(a,b){return a.n-b.n}),
       i=all.map(function(w){return w.n}).indexOf(from),out=[];
   if(i<0)i=0;
@@ -1434,6 +1644,8 @@ function applyTo(wn,day,scope,fn){
   if(t)fn(t);
 }
 function scopeAsk(title,what){
+  var pa=window._pa;
+  if(pa&&isSpecialWk(pa.wn)&&(!pa.nw||isSpecialWk(pa.nw))){runPending('perm');return}
   sheetOpen('<h2>'+title+'</h2>'+
     '<div class="tiny" style="margin:-6px 0 14px">'+what+'</div>'+
     '<button class="btn wide" style="margin-bottom:8px" onclick="runPending(\'perm\')">Permanent</button>'+
@@ -1505,14 +1717,14 @@ function mealOpts(sel){
     return '<option value="'+m[0]+'"'+(m[0]===(sel||'middag')?' selected':'')+'>'+m[1]+'</option>';
   }).join('');
 }
-function weekOpts(sel){return S.weeks.map(function(w){
-  return '<option value="'+w.n+'"'+(w.n===sel?' selected':'')+'>Vecka '+w.n+'</option>'}).join('')}
+function weekOpts(sel){return S.weeks.concat(S.specialWeeks||[]).map(function(w){
+  return '<option value="'+w.n+'"'+(w.n===sel?' selected':'')+'>'+esc(weekName(w.n))+'</option>'}).join('')}
 function dayOpts(sel){return DAYS.map(function(d){
   return '<option value="'+d[0]+'"'+(d[0]===sel?' selected':'')+'>'+d[1]+'</option>'}).join('')}
 function editDish(wn,day,i){
   var d=dayDishes(wn,day)[i];if(!d)return;
   sheetOpen('<h2>'+esc(dishName(d))+'</h2>'+
-    '<div class="tiny" style="margin:-6px 0 12px">Ligger på '+dayName(day)+' i vecka '+wn+'</div>'+
+    '<div class="tiny" style="margin:-6px 0 12px">Ligger på '+dayName(day)+' i '+esc(weekName(wn)).toLowerCase()+'</div>'+
     '<div class="field"><label>Vecka</label><select id="m_w">'+weekOpts(wn)+'</select></div>'+
     '<div class="field"><label>Veckodag</label><select id="m_d">'+dayOpts(day)+'</select></div>'+
     '<div class="field"><label>Måltid</label><select id="m_m">'+mealOpts(d.meal)+'</select></div>'+
@@ -1808,7 +2020,8 @@ function moveOrd(shop,name,dir){
 function groups(){
   var map={},pending=[],fram=[],willys=[],other=[],skipped=[],k;
   actWeeks().forEach(function(w,pos){
-    DAYS.forEach(function(d){
+    DAYS.forEach(function(d,di){
+      if(!inPeriod(pos,di))return;
       dayDishes(w.n,d[0]).forEach(function(dish){
         var r=rec(dish.recipeId);if(!r)return;
         var off=dayOffset(d[0],pos);
@@ -2126,7 +2339,7 @@ function usesSheet(key){
     ' &middot; '+uses.length+(uses.length===1?' tillfälle':' tillfällen')+'</div>'+
     '<div class="card"><ul class="slist">';
   uses.forEach(function(u){
-    var day=labelOf(u.day).slice(0,3)+' v'+u.wn+(u.meal&&u.meal!=='middag'?' &middot; '+mealLabel(u.meal).toLowerCase():'');
+    var day=labelOf(u.day).slice(0,3)+' '+wkShort(u.wn)+(u.meal&&u.meal!=='middag'?' &middot; '+mealLabel(u.meal).toLowerCase():'');
     h+='<li style="align-items:baseline"><span class="grow"><b style="font-weight:650">'+esc(u.text||u.r)+'</b>'+
        '<div class="tiny" style="margin-top:3px">'+day+'</div></span>'+
        '<span class="qty" style="font-weight:700;white-space:nowrap">'+
@@ -2438,7 +2651,7 @@ function periodSlot(dt){
   var off=Math.round((d-st)/86400000);
   if(off<0)return null;
   var p=Math.floor(off/7),i=off%7;
-  if(p>=S.activeWeeks.length||i>=DAYS.length)return null;
+  if(p>=S.activeWeeks.length||i>=DAYS.length||!inPeriod(p,i))return null;
   return {wn:S.activeWeeks[p],day:DAYS[i][0],off:off};
 }
 function mealsText(list){
@@ -2519,7 +2732,24 @@ function notifySettings(){
       '<span class="tiny">'+(c.eveLead===0?'visar dagens mat':c.eveLead===1?'visar morgondagens mat':'visar maten om '+c.eveLead+' dagar')+'</span></div>':'')+
     '</div>';
 }
-function refreshReminders(){try{S.reminders=reminderPlan();S.notes=notesPlan();S.notify=notifyCfg()}catch(e){}}
+/* räkna som om specialperioden vore aktiv, och ställ sedan tillbaka */
+function withSpecialActive(fn){
+  var a=S.activeWeeks,p=S.periodStart,D=DAYS,act=S.special.active;
+  S.special.active=true;S.activeWeeks=S.special.weeks.slice();S.periodStart=S.special.start;rebuildDays();
+  try{return fn()}finally{S.special.active=act;S.activeWeeks=a;S.periodStart=p;DAYS=D}
+}
+function refreshReminders(){try{
+  S.reminders=reminderPlan();
+  var np=notesPlan();
+  /* planerad specialperiod: notiserna om dess dagar ska komma redan innan den startar */
+  if(S.special&&!S.special.active){
+    var sp=withSpecialActive(notesPlan),c=notifyCfg(),st=S.special.start,
+        tg=function(d,lead){var x=new Date(d+'T12:00:00');x.setDate(x.getDate()+lead);return iso(x)};
+    np.evening=np.evening.filter(function(e){return tg(e.date,c.eveLead)<st}).concat(sp.evening.filter(function(e){return tg(e.date,c.eveLead)>=st}));
+    np.thaw=np.thaw.filter(function(e){return tg(e.date,c.thawLead)<st}).concat(sp.thaw.filter(function(e){return tg(e.date,c.thawLead)>=st}));
+  }
+  S.notes=np;S.notify=notifyCfg();
+}catch(e){}}
 function laterCount(g){
   var n=0,f=function(it){if(!isOn(it))n++};
   splitLater(framRows(g)).late.forEach(f);splitLater(willysRows(g)).late.forEach(f);splitLater(otherRows(g)).late.forEach(f);
@@ -2885,12 +3115,13 @@ function renderCook(){
   if(S.activeWeeks.length>1){
     h+='<div class="chips" style="margin-bottom:11px">';
     S.activeWeeks.forEach(function(n){
-      h+='<button class="chip'+(n===cookWeekNo()?' on':'')+'" onclick="setCookWeek('+n+')">Vecka '+n+'</button>';
+      h+='<button class="chip'+(n===cookWeekNo()?' on':'')+'" onclick="setCookWeek('+n+')">'+esc(weekName(n))+'</button>';
     });
     h+='</div>';
   }
-  h+='<div class="daygrid" style="grid-template-columns:repeat('+DAYS.length+',1fr)">';
-  DAYS.forEach(function(d){
+  var CD=cookDAYS();
+  h+='<div class="daygrid" style="grid-template-columns:repeat('+CD.length+',1fr)">';
+  CD.forEach(function(d){
     var list=days[d[0]]||[],n=list.length,wn=cookWeekNo(),
         allDone=dayDone(wn,d[0]);
     h+='<button class="'+(d[0]===day?'on ':'')+(allDone?'done ':'')+(n?'':'empty')+'" '+
@@ -3171,6 +3402,9 @@ if(S.appVer!==APP_VERSION){S.appVer=APP_VERSION;S.needPush=true}
 applyNewOrder();
 migratePool();
 migrateLunchbox();
+migrateGlass();
+seedSpecial();
+autoSpecial();
 rebuildDays();
 gotoToday();go('plan','shop');
 
