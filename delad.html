@@ -443,7 +443,7 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return me
  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
  del:function(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 var KEY='matveckan.shared.v1';
-var APP_VERSION='53-delad';
+var APP_VERSION='57-delad';
 var ALLDAYS=[['mon','Måndag'],['tue','Tisdag'],['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag']];
 var CYC=['mon','tue','wed','thu','fri','sat','sun'];
 var DAYS=[['wed','Onsdag'],['thu','Torsdag'],['fri','Fredag'],['sat','Lördag'],['sun','Söndag'],['mon','Måndag'],['tue','Tisdag']];
@@ -1003,6 +1003,99 @@ function seedSpecial(){
     });
   });
   save();
+}
+var CHICKEN_STAMP='kycklingbiffar-2026-11';
+/* kycklingbiffarna byts mot Knatteplocks asiatiska variant – samma recept-id, så platserna i veckorna består */
+function migrateChicken(){
+  if(S.chickenStamp===CHICKEN_STAMP)return;
+  var r=S.recipes.filter(function(x){return /^kycklingbiffar med knatteplock/i.test(x.name)})[0];
+  if(!r){r={id:uid()};S.recipes.push(r)}
+  r.name='Asiatiska kycklingbiffar med gurksallad';r.type='middag';r.types=['middag'];r.bas=4;
+  r.ing=[I(500,'g','Kycklingfärs'),I(1,'','Ägg'),I(2.5,'msk','Ingefära'),I(1,'klyfta','Vitlök'),
+         I(1,'msk','Currypasta'),I(2,'','Lime'),I(0.5,'msk','Rapsolja'),I(2,'tsk','Soja tamari'),
+         I(1,'','Gurka'),I(1,'dl','Salladslök'),I(2,'tsk','Risvinäger'),I(1,'msk','Sesamolja'),
+         I(0.25,'','Citron'),I(null,'','Äggnudlar'),I(null,'','Majonäs')];
+  r.howto='1. Gurksallad: skala gurkan och skär den i små bitar. Strimla salladslöken fint och blanda alltihop med risvinäger, 1,5 msk vatten, 1 msk riven ingefära, sesamolja, en skvätt citronsaft och lite soja.\n\n'+
+    '2. Biffar: blanda kycklingfärsen med ägget, resten av ingefäran, pressad vitlök, currypasta, soja och saften från en lime. Forma små biffar och stek dem i rapsolja 3–4 minuter per sida. Sänk värmen och håll dem varma tills det är dags att äta.\n\n'+
+    '3. Koka äggnudlarna (eller ris) och smaka av med en skvätt sesamolja och lime. Rör ihop majonnäs med lite limesaft.\n\n'+
+    '4. Servera biffarna med nudlar, gurksallad och limemajonnäs.\n\n'+
+    'Källa: Knatteplock – knatteplock.se/blogs/vardagsmat-barnfamilj/asiatiska-kycklingbiffar-med-gurksallad';
+  S.chickenStamp=CHICKEN_STAMP;save();
+}
+var SAFFRON_STAMP='saffransfisk-2026-11';
+/* saffransfisken efter Annas kokbok – samma recept-id, så platsen i veckorna består */
+function migrateSaffron(){
+  if(S.saffronStamp===SAFFRON_STAMP)return;
+  var r=S.recipes.filter(function(x){return x.name.toLowerCase()==='saffransfisk i ugn'})[0];
+  if(!r){r={id:uid(),name:'Saffransfisk i ugn'};S.recipes.push(r)}
+  r.type='middag';r.types=['middag'];r.bas=4;
+  r.ing=[I(400,'g','Fryst fiskblock'),I(3,'dl','Grädde'),I(0.5,'paket','Saffran'),I(1,'krm','Paprikapulver'),
+         I(1,'tsk','Dragon'),I(1,'tsk','Finkornigt salt'),I(null,'','Svartpeppar'),
+         I(null,'','Potatis'),I(null,'','Frysta ärtor')];
+  r.howto='1. Sätt ugnen på 200–225°. Smörj en ugnsform som fiskblocket precis får plats i och lägg i fisken direkt från frysen – den ska inte tinas.\n\n'+
+    '2. Koka snabbt upp grädden med saffran, paprikapulver, smulad dragon, salt och några varv svartpeppar. Häll såsen över fisken.\n\n'+
+    '3. In i ugnen 40–45 minuter. Servera med kokt potatis och små gröna ärter.\n\n'+
+    'Källa: Annas saffransfisk, Annas kokbok.';
+  S.saffronStamp=SAFFRON_STAMP;save();
+}
+var PARTNER_STAMP='partnerplan-2026-11';
+/* hennes förslag: vecka 1–5 och två helgvarianter som växlar, plus vecka 6–8 till framtida bruk.
+   De gamla standardveckorna sparas som mall innan de ersätts. */
+var PARTNER_ROWS=[[1, "thu", "middag", "Torskrygg med kokt potatis och skirat smör", ""], [1, "fri", "middag", "Pizza (dubbel sats)", ""], [1, "sat", "lunch", "Rester", "Rester pizza"], [1, "sat", "middag", "Hamburgare med sötpotatis", ""], [1, "sun", "lunch", "Våfflor (dubbel sats)", ""], [1, "sun", "middag", "Fisknuggets med nudlar", ""], [1, "mon", "middag", "Falafel med rotsaker", ""], [1, "tue", "middag", "Lasagne", ""], [1, "wed", "middag", "Morotssoppa", ""], [2, "thu", "middag", "Asiatiska kycklingbiffar med gurksallad", ""], [2, "fri", "middag", "Tacos", ""], [2, "sat", "lunch", "Köpeköttbullar med plock", ""], [2, "sat", "middag", "Pinsa", ""], [2, "sun", "lunch", "Våfflor (dubbel sats)", ""], [2, "sun", "middag", "Korvstroganoff med ris", ""], [2, "mon", "middag", "Risotto", ""], [2, "tue", "middag", "Pasta carbonara", ""], [2, "wed", "middag", "Köttbullar med vitkålsmos", ""], [3, "thu", "middag", "Saffransfisksoppa", ""], [3, "fri", "middag", "Pizza (dubbel sats)", ""], [3, "sat", "lunch", "Rester", "Rester pizza"], [3, "sat", "middag", "Hamburgare med sötpotatis", ""], [3, "sun", "lunch", "Våfflor (dubbel sats)", ""], [3, "sun", "middag", "Fisknuggets med nudlar", ""], [3, "mon", "middag", "Auberginegratäng", ""], [3, "tue", "middag", "Köttfärssås med pasta", ""], [3, "wed", "middag", "Pytt i panna", ""], [4, "thu", "middag", "Kyckling i gul curry med blomkålsris", ""], [4, "fri", "middag", "Tacos", ""], [4, "sat", "lunch", "Köpeköttbullar med plock", ""], [4, "sat", "middag", "Pinsa", ""], [4, "sun", "lunch", "Våfflor (dubbel sats)", ""], [4, "sun", "middag", "Korvstroganoff med ris", ""], [4, "mon", "middag", "Laxpasta", ""], [4, "tue", "middag", "Ostpannkaka", ""], [4, "wed", "middag", "Gulasch", ""], [5, "thu", "middag", "Sydfransk fisksoppa", ""], [5, "fri", "middag", "Pizza (dubbel sats)", ""], [5, "sat", "lunch", "Rester", "Rester pizza"], [5, "sat", "middag", "Hamburgare med sötpotatis", ""], [5, "sun", "lunch", "Våfflor (dubbel sats)", ""], [5, "sun", "middag", "Fisknuggets med nudlar", ""], [5, "mon", "middag", "Nachotallrik", ""], [5, "tue", "middag", "Biffar med potatis och tzatziki", ""], [5, "wed", "middag", "Korv med klyftpotatis", ""], [6, "thu", "middag", "Kyckling, blomkålsris och dragonsås", ""], [6, "fri", "middag", "Tacos", ""], [6, "sat", "lunch", "Köpeköttbullar med plock", ""], [6, "sat", "middag", "Pinsa", ""], [6, "sun", "lunch", "Våfflor (dubbel sats)", ""], [6, "sun", "middag", "Korvstroganoff med ris", ""], [6, "mon", "middag", "Nudelsallad med räkor och jordnötssås", ""], [6, "tue", "middag", "Blomkålssoppa", ""], [6, "wed", "middag", "Bovete med pesto", ""], [7, "thu", "middag", "Persiljekyckling", ""], [7, "fri", "middag", "Pizza (dubbel sats)", ""], [7, "sat", "lunch", "Rester", "Rester pizza"], [7, "sat", "middag", "Hamburgare med sötpotatis", ""], [7, "sun", "lunch", "Våfflor (dubbel sats)", ""], [7, "sun", "middag", "Fisknuggets med nudlar", ""], [7, "mon", "middag", "Keso- och tomatpasta", ""], [7, "tue", "middag", "Potatissoppa", ""], [7, "wed", "middag", "Laxpasta", ""], [8, "thu", "middag", "Kyckling i ugn med soltorkade tomater och havreris", ""], [8, "fri", "middag", "Tacos", ""], [8, "sat", "lunch", "Köpeköttbullar med plock", ""], [8, "sat", "middag", "Pinsa", ""], [8, "sun", "lunch", "Våfflor (dubbel sats)", ""], [8, "sun", "middag", "Korvstroganoff med ris", ""], [8, "mon", "middag", "Saffransfisk i ugn", ""], [8, "tue", "middag", "Rotsaker i ugn med halloumi", ""], [8, "wed", "middag", "Pasta med pesto", ""]];
+function migratePartnerPlan(){
+  if(S.partnerStamp===PARTNER_STAMP)return;
+  var byName=function(n){
+    var r=S.recipes.filter(function(x){return x.name.toLowerCase()===n.toLowerCase()})[0];
+    if(!r){r={id:uid(),name:n,type:'middag',types:['middag'],bas:4,ing:[]};S.recipes.push(r)}
+    return r;
+  };
+  /* portioner som rätten brukar ha, annars fyra */
+  var port=function(rid){var p=4;S.weeks.some(function(w){for(var d in w.days)if((w.days[d]||[]).some(function(x){if(x.recipeId===rid&&x.portions){p=x.portions;return true}}))return true});return p};
+  /* fasta frukostar och mellanmål: samma rätt samma veckodag i alla gamla veckor */
+  var staples={};
+  CYC.forEach(function(k){
+    ((S.weeks[0]&&S.weeks[0].days[k])||[]).forEach(function(x){
+      if(!x.meal||x.meal==='middag'||x.meal==='lunch'||x.text)return;
+      if(S.weeks.every(function(w){return (w.days[k]||[]).some(function(y){return y.recipeId===x.recipeId&&y.meal===x.meal&&!y.text})}))
+        (staples[k]=staples[k]||[]).push({recipeId:x.recipeId,portions:x.portions,meal:x.meal});
+    });
+  });
+  /* spara de gamla veckorna */
+  S.savedPlans=S.savedPlans||[];
+  S.savedPlans.push({id:uid(),name:'Gamla standardveckorna (nov 2026)',days:S.weeks.length*7,
+    weeks:S.weeks.slice().sort(function(a,b){return a.n-b.n}).map(function(w){return JSON.parse(JSON.stringify(w.days))})});
+  var weeks=[];
+  for(var n=1;n<=8;n++){
+    var w={n:n,days:emptyWeek()};
+    PARTNER_ROWS.filter(function(r){return r[0]===n}).forEach(function(r){
+      var rc=byName(r[3]);
+      w.days[r[1]].push({id:uid(),recipeId:rc.id,portions:port(rc.id),meal:r[2],text:r[4]||'',matlada:r[2]==='middag'});
+    });
+    for(var k in staples)staples[k].forEach(function(x){w.days[k].push({id:uid(),recipeId:x.recipeId,portions:x.portions,meal:x.meal,text:'',matlada:false})});
+    weeks.push(w);
+  }
+  S.weeks=weeks;S.temp={};
+  /* efter specialperioden börjar vecka 1 och 2; annars direkt från nästa startdag */
+  if(specialActive())S.stdBackup={a:[1,2],p:''};
+  else{S.activeWeeks=[1,2];rebuildDays();S.periodStart=nextStartDate();resetPeriod();S.cookWeek=null}
+  S.partnerStamp=PARTNER_STAMP;save();
+}
+var SALMON_STAMP='laxsida-ut-2026-11';
+/* laxsidan utgår – torsdagen i vecka 2 får kycklingbiffarna, även om planen redan lagts in */
+function migrateNoSalmon(){
+  if(S.salmonStamp===SALMON_STAMP)return;
+  var lax=S.recipes.filter(function(x){return x.name==='Laxsida med tillbehör'})[0],
+      kyc=S.recipes.filter(function(x){return x.name==='Asiatiska kycklingbiffar med gurksallad'})[0];
+  if(lax&&kyc){
+    S.weeks.forEach(function(w){for(var d in w.days)(w.days[d]||[]).forEach(function(x){if(x.recipeId===lax.id){x.recipeId=kyc.id;x.portions=kyc.bas||4}})});
+    for(var k in S.temp)(S.temp[k]||[]).forEach(function(x){if(x.recipeId===lax.id)x.recipeId=kyc.id});
+  }
+  /* det tomma receptet tas bort om ingen rätt längre pekar på det */
+  if(lax&&!lax.ing.length){
+    var used=S.weeks.concat(S.specialWeeks||[]).some(function(w){for(var d in w.days)if((w.days[d]||[]).some(function(x){return x.recipeId===lax.id}))return true});
+    if(!used)S.recipes=S.recipes.filter(function(x){return x.id!==lax.id});
+  }
+  S.salmonStamp=SALMON_STAMP;save();
 }
 var ORDER_STAMP='butiksordning-2026-09-29b';
 function applyNewOrder(){
@@ -3404,6 +3497,10 @@ migratePool();
 migrateLunchbox();
 migrateGlass();
 seedSpecial();
+migrateChicken();
+migrateSaffron();
+migratePartnerPlan();
+migrateNoSalmon();
 autoSpecial();
 rebuildDays();
 gotoToday();go('plan','shop');
